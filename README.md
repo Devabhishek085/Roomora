@@ -1,121 +1,229 @@
-# Roommate.com — Find Your Place. Find Your People.
+# Roomora — Full-Stack Roommate Matching Platform
 
-> **Award-Winning 3D-Animated Student Housing & Roommate Discovery Platform**  
-> *Engineered for KIET Innotech 2026 (National-Level College Tech Fest)*
+> **Compatibility-first roommate finding.** Find someone you'll actually like — not just someone who replied to your post.
 
----
-
-## 🌟 Executive Overview & Hackathon Pitch
-
-### 1. Problem Statement
-Finding housing near college campuses (like KIET Ghaziabad, DU North Campus, or Koramangala Bengaluru) is broken:
-- **Broker Exploitation**: Unverified brokers demand ₹2,000–₹5,000 "token advances" before viewings, leading to high scam rates.
-- **Random Roommate Lottery**: Students sign 11-month leases with strangers having incompatible circadian cycles (Night Owls vs Early Birds), differing cleanliness standards, or mismatched study habits, resulting in severe academic stress.
-- **Zero Transparency**: Commercial aggregators conceal true commute times and lack explainability.
-
-### 2. Innovation & Solution
-**Roommate.com** is a 100% frontend-only, client-side, privacy-preserving platform delivering:
-1. **Interactive 3D WebGL Hero Canvas**: A real-time Three.js/Fiber/Drei isometric student campus city block with glowing windows, interactive location pins, ambient dust, and mouse parallax.
-2. **Deterministic Geocoded Listings Generator**: Generates realistic demo PG and flat listings around any queried coordinates (lat/lng) using seeded random algorithms. The same coordinates yield identical results with realistic rent, deposit, amenities, and photo galleries.
-3. **Live Overpass API Essentials**: Fetches real colleges, transit stops, hospitals, supermarkets, ATMs, and cafes around your coordinates, computing commute distances via the **Haversine formula**.
-4. **Transparent & Explainable Compatibility Engine**: Pure TypeScript deterministic algorithm pairing roommates on sleep cycles, chores, noise tolerance, and budget. Includes unit tests with Vitest, factor breakdowns, strengths, points of discussion, and ethical non-discriminatory boundaries.
-5. **Anti-Scam Safety Center**: Student pre-payment verification checklist and local report filing mechanism.
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-2.x-3ECF8E?logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?logo=tailwindcss)](https://tailwindcss.com/)
 
 ---
 
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- Node.js (v18+ recommended, tested on Node v24)
-- npm (v9+)
-
-### Installation & Run
+## Quick Start
 
 ```bash
-# 1. Install dependencies
+# 1. Clone & install
+git clone https://github.com/Devabhishek085/Roomora.git
+cd Roomora
 npm install
 
-# 2. Start the local development server
+# 2. Configure environment
+cp .env.example .env.local
+# → Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+
+# 3. Set up the database (run in Supabase SQL Editor)
+# → Run: supabase/migrations/001_initial_schema.sql
+
+# 4. Seed 20 demo profiles (optional)
+VITE_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-demo-profiles.mjs
+
+# 5. Start frontend dev server
 npm run dev
+# → http://localhost:5173/
 
-# 3. Run compatibility engine unit tests
-npx vitest run
-
-# 4. Production build
-npm run build
+# 6. Start sidecar server (Razorpay / UIDAI webhooks — separate terminal)
+cd sidecar && npm install && npm run dev
+# → http://localhost:3001/
 ```
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## Architecture
 
-| Layer | Technologies & Purpose |
-| :--- | :--- |
-| **Framework & Language** | React 19, Vite, TypeScript |
-| **Styling & Design System** | Tailwind CSS v4, custom glassmorphism, Google Fonts (`Fraunces` editorial serif & `Plus Jakarta Sans`) |
-| **3D & WebGL Engine** | Three.js, `@react-three/fiber`, `@react-three/drei`, mouse parallax, low-poly isometric city block |
-| **Mapping & Geocoding** | Leaflet, `react-leaflet`, OpenStreetMap Nominatim API, Overpass QL API |
-| **State & Persistence** | Zustand with `persist` middleware storing data in `localStorage` |
-| **Smooth Motion & UX** | Lenis smooth scrolling, canvas-confetti, magnetic custom cursor |
-| **Unit Testing** | Vitest testing suite for compatibility scoring mathematics |
-
----
-
-## 📍 How Location Search & POI Discovery Works
-
-1. **Debounced Nominatim Geocoding**:
-   - Location queries (e.g. "KIET Ghaziabad", "Koramangala", "Mathura") are debounced at 400ms.
-   - Strictly throttled to `<= 1 request per second` to respect OpenStreetMap Nominatim fair usage policies.
-   - Dual-layer caching: in-memory `Map` + `localStorage` cache.
-   - Offline fallback: Includes a curated database of top Indian student hubs (KIET Muradnagar, Knowledge Park Greater Noida, DU North Campus, Hinjewadi Pune, etc.).
-
-2. **Browser Geolocation API**:
-   - "Near Me" button resolves the user's GPS position with fallback to reverse geocoding (`/reverse`).
-
-3. **Deterministic Seeded Listings Generator (`listings-generator.ts`)**:
-   - Computes an integer seed: `Math.floor(Math.abs(lat * 1000 + lng * 1000))`.
-   - Distributes realistic PGs and flats within the user's radius slider (1–12 km).
-   - Accurately computes distance in km via the **Haversine formula**.
-   - All listings are clearly stamped with a **"Demo Listing"** tag.
-
-4. **Live Overpass API Essentials (`overpass.ts`)**:
-   - Live query to `https://overpass-api.de/api/interpreter` fetching nearby colleges, bus stops, metro stations, hospitals, and ATMs.
-   - Graceful timeout (4.5s) with realistic fallback POIs so the UI never hangs.
-
----
-
-## 🧠 Explainable Compatibility Engine
-
-- Located in `src/services/compatibility.ts` with unit tests in `src/services/compatibility.test.ts`.
-- **Score calculation (0 to 100)**:
-  $$\text{Score} = \frac{\sum (\text{CategoryScore}_i \times \text{Weight}_i)}{\sum \text{Weight}_i}$$
-- **Hard Constraints**:
-  - Flags non-overlapping budget brackets when `strictBudget` is toggled.
-  - Caps mismatch score at $\le 42\%$ to alert students.
-- **Explainability**:
-  - Breaks down matching factors: Sleep Schedule, Cleanliness & Chores, Diet & Kitchen, Smoking/Substances, Noise Tolerance, and Visitor Rules.
-  - Highlights "Core Synergy" and "Discuss Before Moving In".
-  - **Ethical Safeguard**: Never uses religion, caste, race, or discriminatory proxies.
+```
+Roomora/
+├── src/
+│   ├── pages/           # React pages (lazy-loaded)
+│   │   ├── LandingPage.tsx       ← Roommate-first hero, PG secondary
+│   │   ├── MatchesPage.tsx       ← DB + demo profiles, compatibility
+│   │   ├── RegisterPage.tsx      ← Auth: create account
+│   │   ├── LoginPage.tsx         ← Auth: sign in
+│   │   ├── ConnectionsPage.tsx   ← Active connections list
+│   │   ├── MessagesPage.tsx      ← Real-time chat (Supabase Realtime)
+│   │   ├── SubscriptionPage.tsx  ← Razorpay plan selection
+│   │   ├── DashboardPage.tsx     ← Profile, saved, inquiries
+│   │   ├── OnboardingPage.tsx    ← 4-step lifestyle quiz
+│   │   ├── ExplorePage.tsx       ← PG map (Overpass API)
+│   │   ├── PropertyDetailsPage.tsx
+│   │   └── SafetyCenterPage.tsx
+│   ├── services/
+│   │   ├── profiles.ts           ← DB profile fetch + mapping
+│   │   ├── connections.ts        ← Token deduction, messaging, blocks
+│   │   ├── compatibility.ts      ← Weighted scoring engine + 20 demo profiles
+│   │   ├── aadhaar.ts            ← UIDAI integration boundary (mock + real)
+│   │   ├── subscriptions.ts      ← Plan configuration
+│   │   ├── listings-generator.ts ← Deterministic PG demo listings
+│   │   └── overpass.ts           ← POI discovery
+│   ├── store/
+│   │   ├── useAuthStore.ts       ← Supabase auth state (NEW)
+│   │   └── useAppStore.ts        ← UI state + localStorage persist
+│   ├── components/
+│   │   ├── Navbar.tsx            ← Roommate-first nav + auth
+│   │   ├── ConnectModal.tsx      ← Token-gated connection flow
+│   │   ├── RoommateCard.tsx      ← Demo label + Aadhaar badge
+│   │   └── 3d/HeroScene.tsx      ← Three.js WebGL hero
+│   ├── lib/
+│   │   └── supabase.ts           ← Supabase client (anon key only)
+│   └── types/index.ts            ← Full TypeScript types
+├── supabase/
+│   └── migrations/001_initial_schema.sql  ← Full DB schema + RLS
+├── sidecar/
+│   └── index.js                  ← Express: Razorpay + UIDAI (server-only)
+├── scripts/
+│   └── seed-demo-profiles.mjs   ← Seeds 20 labeled AI demo profiles
+└── .env.example                  ← Environment variable template
+```
 
 ---
 
-## 🛡️ Limitations & Future Scope
+## Features Implemented
 
-### Current Prototype Limitations
-1. No backend or database: Inquiries, saved items, and user answers are stored locally in the browser's `localStorage`.
-2. Mock listings: Real estate listings are deterministically generated demo models since no free nationwide PG database exists.
-3. Verification is simulated for the hackathon demonstration.
+### ✅ Authentication (Supabase Auth)
+- Email/password sign up & sign in
+- JWT session management with auto-refresh
+- PKCE flow
+- Password visibility toggle, form validation
+- Auto-creates profile + grants 10 free tokens on signup (database trigger)
 
-### Future Roadmap (Production Scope)
-1. **Real Backend**: NestJS / Supabase with PostgreSQL and Row-Level Security.
-2. **Biometric Verification**: Digilocker / Aadhaar OTP verification for student IDs and landlord title deed checking.
-3. **Campus Partnerships**: Formal integration with college student welfare committees (KIET Innotech campus housing cell).
-4. **Real-Time Group Chat**: WebSockets / Matrix protocol for end-to-end encrypted roommate chat before lease signing.
+### ✅ Database (PostgreSQL + Supabase)
+- **14 tables**: profiles, token_balances, token_transactions, roommate_connections, conversations, messages, subscriptions, payment_transactions, aadhaar_verifications, saved_roommates, user_blocks, user_reports, audit_events
+- **Row-Level Security (RLS)** enforced on every table
+- **Atomic token deduction** via `deduct_connection_token()` stored procedure — prevents race conditions and double-spend
+- **Auto-profile creation trigger**: on signup → creates profile + grants 10 tokens + records subscription
+
+### ✅ Token-Based Connection System
+- New users get **10 free connection tokens** (never credit card)
+- Each new connection costs **1 token**, atomically deducted server-side
+- Idempotency key prevents duplicate charges on double-click
+- Demo profiles clearly blocked from consuming tokens
+- Token balance visible in Navbar and MatchesPage
+- `ConnectModal` handles: token gate, demo guard, auth gate, already-connected, no-tokens → paywall
+
+### ✅ Roommate-First Navigation
+- Homepage: Roommate matching is primary hero, PG discovery is secondary
+- Navbar order: Home → **Find Roommates** → Connections → PGs & Flats → Safety → Dashboard
+- Primary CTA: "Find My Roommate" (not "Find a Room")
+
+### ✅ Demo Profile Labeling
+- All 20 AI-generated profiles have `demoLabel: 'AI-generated demo profile'`
+- Every `RoommateCard` shows visible **AI Demo** amber badge
+- Demo profiles cannot receive real connections (blocked at DB function level)
+- `MatchesPage` shows real vs demo counts prominently
+- Seed script produces DiceBear avatars (no real faces)
+
+### ✅ Real-time Messaging (Supabase Realtime)
+- `MessagesPage` subscribes to `postgres_changes` on `messages` table
+- Read receipts (✓ / ✓✓)
+- Block user / Report user actions
+- 2000-character limit enforced client + server
+- Messages only visible to connection participants (RLS)
+
+### ✅ Subscription Plans (Razorpay)
+- **Starter** – Free, 10 tokens
+- **Connect+** – ₹199/month, unlimited connections
+- **Premium** – ₹499/month, unlimited + featured placement
+- Sidecar server handles: order creation, HMAC signature verification, subscription activation
+- Webhook handler for payment.failed events
+- Payment never trusted from frontend — always server-verified
+
+### ⚠️ UIDAI Aadhaar Verification (Integration Boundary Defined)
+- `src/services/aadhaar.ts`: Full adapter pattern with clearly labeled mock mode
+- `sidecar/index.js`: Server-side endpoint stubs for `POST /api/aadhaar/initiate` and `/verify`
+- UIDAI credentials isolated server-side only — never exposed to browser
+- Mock mode: OTP `123456` works in development, produces `is_mock: true` records only
+- Production: requires formal UIDAI Developer Sandbox onboarding at https://developer.uidai.gov.in
+- No real Aadhaar numbers are ever stored
 
 ---
 
-## 🏆 Hackathon Project Information
-- **Event**: KIET Innotech 2026 (National Level Tech Fest)
-- **Track**: Web3 / Smart Living / EdTech / Student Infrastructure
-- **Team**: Roommate.com Engineering
-- **Status**: 100% Functional Client-Side Demo
+## Compatibility Engine
+
+The weighted scoring algorithm is fully transparent — no black-box AI:
+
+```
+Score = Σ(CategoryScore × UserWeight) / Σ(Weights)
+
+Categories: Sleep Schedule, Cleanliness, Food Preference,
+            Guest Policy, Noise Tolerance, Smoking/Drinking
+```
+
+Hard constraints (budget, move-in date, gender policy) trigger early exclusion before weighted scoring.
+
+---
+
+## Security Architecture
+
+| Layer | Implementation |
+|---|---|
+| **Token deduction** | Atomic PostgreSQL stored procedure (`SELECT ... FOR UPDATE`) |
+| **RLS** | All 14 tables — users can only read/write their own data |
+| **Auth** | Supabase PKCE flow, JWT verified server-side for sidecar endpoints |
+| **Payment** | Razorpay HMAC signature verified in sidecar — never frontend |
+| **UIDAI** | Credentials only in sidecar `.env` — never in `VITE_` vars |
+| **Demo isolation** | DB function blocks token deduction for `is_demo=true` profiles |
+| **Audit log** | Every connection, signup, and payment recorded in `audit_events` |
+
+---
+
+## Environment Variables
+
+```bash
+# Copy and fill in:
+cp .env.example .env.local
+
+# Required for full functionality:
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# Payment (sidecar only — never VITE_):
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=...
+
+# UIDAI (sidecar only — requires formal onboarding):
+UIDAI_CLIENT_ID=...
+UIDAI_CLIENT_SECRET=...
+```
+
+> The app runs fully in **demo mode** without any configuration — all 20 labeled AI profiles are visible, compatibility scoring works, and the UI is fully interactive.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 19 + TypeScript + Vite 8 |
+| Styling | Tailwind CSS v4 |
+| State | Zustand 5 (UI) + Supabase Auth (server state) |
+| 3D | Three.js + @react-three/fiber + @react-three/drei |
+| Database | PostgreSQL (Supabase) |
+| Realtime | Supabase Realtime (postgres_changes) |
+| Mapping | Leaflet + Overpass API |
+| Payments | Razorpay (server-side order + webhook) |
+| Identity | UIDAI Developer Sandbox (integration boundary defined) |
+| Scroll | Lenis smooth scroll |
+| Testing | Vitest (compatibility engine unit tests) |
+
+---
+
+## Database Setup
+
+1. Create a Supabase project at https://supabase.com
+2. Open **SQL Editor** → paste contents of `supabase/migrations/001_initial_schema.sql` → Run
+3. Copy your Project URL and anon key into `.env.local`
+4. (Optional) Run the seed script to populate 20 demo profiles
+
+---
+
+*Built on the `feature/full-stack-platform` branch — incremental changes preserving the original hackathon frontend architecture.*

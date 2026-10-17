@@ -16,41 +16,44 @@ export const DEFAULT_LOCATION: LocationCoordinates = {
   displayName: 'University of Delhi North Campus, Vishwavidyalaya, Delhi'
 };
 
-export const DEFAULT_USER_PROFILE: UserOnboardingProfile = {
-  name: 'Aarav Sharma',
-  age: 21,
+export const createEmptyUserProfile = (name = ''): UserOnboardingProfile => ({
+  name,
+  avatarUrl: '',
+  age: 20,
   gender: 'Male',
   occupation: 'College Student',
-  institution: 'Delhi University',
-  city: 'New Delhi',
-  budgetMin: 7000,
-  budgetMax: 13000,
-  moveInDate: '2026-11-01',
+  institution: '',
+  city: '',
+  budgetMin: 5000,
+  budgetMax: 15000,
+  moveInDate: '',
   accommodationType: 'PG',
   sharingPreference: 'Twin Sharing',
-  sleepSchedule: 'Night Owl',
-  cleanliness: 4,
+  sleepSchedule: 'Flexible',
+  cleanliness: 3,
   foodPreference: 'Vegetarian',
   smokingDrinking: 'Never',
   noiseTolerance: 'Moderate',
-  guestPolicy: 'Weekends Only',
+  guestPolicy: 'Rarely',
   privacyNeeds: 'Moderate',
-  bio: 'Final-year student interning in tech. Looking for a quiet, clean flatmate to split rent. Coding late at night with headphones, super respectful of personal space and chore rotations.',
+  bio: '',
   weights: {
-    sleepWeight: 4,
-    cleanlinessWeight: 5,
+    sleepWeight: 3,
+    cleanlinessWeight: 3,
     foodWeight: 3,
     guestWeight: 3,
-    noiseWeight: 4,
-    habitsWeight: 5
+    noiseWeight: 3,
+    habitsWeight: 3
   },
-  strictBudget: true,
+  strictBudget: false,
   strictMoveInDate: false,
-  strictGenderPolicy: true,
+  strictGenderPolicy: false,
   showBudgetPublicly: true,
   showSleepSchedulePublicly: true,
   showContactPublicly: false
-};
+});
+
+export const DEFAULT_USER_PROFILE: UserOnboardingProfile = createEmptyUserProfile('');
 
 interface AppState {
   // Theme
@@ -71,6 +74,7 @@ interface AppState {
   isOnboarded: boolean;
   updateUserProfile: (profile: Partial<UserOnboardingProfile>) => void;
   completeOnboarding: (profile: UserOnboardingProfile) => void;
+  resetUserProfile: (name?: string) => void;
 
   // Favorites & Interactions
   savedProperties: string[];
@@ -129,7 +133,7 @@ export const useAppStore = create<AppState>()(
       setSelectedListingId: (selectedListingId) => set({ selectedListingId }),
 
       userProfile: DEFAULT_USER_PROFILE,
-      isOnboarded: true, // initial default profile ready for demo
+      isOnboarded: false,
       updateUserProfile: (updated) =>
         set((state) => ({
           userProfile: { ...state.userProfile, ...updated }
@@ -138,6 +142,11 @@ export const useAppStore = create<AppState>()(
         set({
           userProfile: profile,
           isOnboarded: true
+        }),
+      resetUserProfile: (name = '') =>
+        set({
+          userProfile: createEmptyUserProfile(name),
+          isOnboarded: false
         }),
 
       savedProperties: ['prop-du-1', 'prop-du-3'],

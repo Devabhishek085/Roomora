@@ -73,6 +73,7 @@ export interface MatchingWeights {
 
 export interface UserOnboardingProfile {
   name: string;
+  avatarUrl?: string;
   age: number;
   gender: 'Male' | 'Female' | 'Non-binary' | 'Prefer not to say';
   occupation: 'College Student' | 'Working Professional' | 'Intern' | 'Freelancer';

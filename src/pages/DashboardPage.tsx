@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   User, 
@@ -36,8 +36,15 @@ export const DashboardPage: React.FC = () => {
     recentSearches,
     clearRecentSearches,
     selectedLocation,
-    setSelectedLocation
+    setSelectedLocation,
+    loadUserScopedData
   } = useAppStore();
+
+  useEffect(() => {
+    if (user?.id) {
+      loadUserScopedData(user.id);
+    }
+  }, [user?.id, loadUserScopedData]);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'saved' | 'inquiries' | 'requests' | 'privacy'>('overview');
 

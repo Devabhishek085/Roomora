@@ -96,6 +96,11 @@ interface AppState {
   // Safety & Reports
   safetyReports: SafetyReport[];
   addSafetyReport: (report: Omit<SafetyReport, 'id' | 'createdAt'>) => void;
+
+  // Account Scoped Data
+  currentUserId: string | null;
+  loadUserScopedData: (userId: string | null) => void;
+  resetAccountData: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -149,107 +154,103 @@ export const useAppStore = create<AppState>()(
           isOnboarded: false
         }),
 
-      savedProperties: ['prop-du-1', 'prop-du-3'],
+      currentUserId: null,
+
+      savedProperties: [],
       toggleSaveProperty: (id) =>
         set((state) => {
           const exists = state.savedProperties.includes(id);
-          return {
-            savedProperties: exists
-              ? state.savedProperties.filter((item) => item !== id)
-              : [...state.savedProperties, id]
-          };
+          const next = exists
+            ? state.savedProperties.filter((item) => item !== id)
+            : [...state.savedProperties, id];
+          if (state.currentUserId) {
+            try {
+              localStorage.setItem(`roomora_saved_props_${state.currentUserId}`, JSON.stringify(next));
+            } catch {}
+          }
+          return { savedProperties: next };
         }),
 
-      savedRoommates: ['rm-1', 'rm-3'],
+      savedRoommates: [],
       toggleSaveRoommate: (id) =>
         set((state) => {
           const exists = state.savedRoommates.includes(id);
-          return {
-            savedRoommates: exists
-              ? state.savedRoommates.filter((item) => item !== id)
-              : [...state.savedRoommates, id]
-          };
+          const next = exists
+            ? state.savedRoommates.filter((item) => item !== id)
+            : [...state.savedRoommates, id];
+          if (state.currentUserId) {
+            try {
+              localStorage.setItem(`roomora_saved_rms_${state.currentUserId}`, JSON.stringify(next));
+            } catch {}
+          }
+          return { savedRoommates: next };
         }),
 
-      inquiries: [
-        {
-          id: 'inq-demo-1',
-          propertyId: 'prop-du-1',
-          propertyTitle: 'Zolo Starlight Student PG (Near North Campus)',
-          senderName: 'Aarav Sharma',
-          senderPhone: '+91 98765 43210',
-          senderEmail: 'aarav.sharma@gmail.com',
-          message: 'Hello, looking for a twin-sharing room for the upcoming college semester. Can I visit this Saturday?',
-          moveInDate: '2026-11-01',
-          createdAt: '2026-10-12',
-          status: 'Inquiry Sent'
-        }
-      ],
+      inquiries: [],
       addInquiry: (inquiryData) =>
-        set((state) => ({
-          inquiries: [
+        set((state) => {
+          const next = [
             {
               ...inquiryData,
               id: 'inq-' + Date.now(),
               createdAt: new Date().toISOString().split('T')[0],
-              status: 'Inquiry Sent'
+              status: 'Inquiry Sent' as const
             },
             ...state.inquiries
-          ]
-        })),
+          ];
+          if (state.currentUserId) {
+            try {
+              localStorage.setItem(`roomora_inquiries_${state.currentUserId}`, JSON.stringify(next));
+            } catch {}
+          }
+          return { inquiries: next };
+        }),
 
-      roommateRequests: [
-        {
-          id: 'req-demo-1',
-          roommateId: 'rm-1',
-          roommateName: 'Rohan Verma',
-          message: 'Hey Rohan, saw your profile on Roommate.com! We have the same sleep schedule — up for grabbing a coffee sometime?',
-          createdAt: '2026-10-13',
-          status: 'Sent'
-        }
-      ],
+      roommateRequests: [],
       addRoommateRequest: (roommateId, roommateName, message) =>
-        set((state) => ({
-          roommateRequests: [
+        set((state) => {
+          const next = [
             {
               id: 'req-' + Date.now(),
               roommateId,
               roommateName,
               message,
               createdAt: new Date().toISOString().split('T')[0],
-              status: 'Sent'
+              status: 'Sent' as const
             },
             ...state.roommateRequests
-          ]
-        })),
+          ];
+          if (state.currentUserId) {
+            try {
+              localStorage.setItem(`roomora_requests_${state.currentUserId}`, JSON.stringify(next));
+            } catch {}
+          }
+          return { roommateRequests: next };
+        }),
 
-      recentSearches: [
-        DEFAULT_LOCATION,
-        {
-          name: 'Koramangala, Bengaluru',
-          lat: 12.9352,
-          lng: 77.6245,
-          city: 'Bengaluru, Karnataka',
-          displayName: 'Koramangala, Bengaluru, Karnataka, India'
-        },
-        {
-          name: 'Delhi University North Campus',
-          lat: 28.6923,
-          lng: 77.2117,
-          city: 'New Delhi',
-          displayName: 'North Campus, University of Delhi, New Delhi'
-        }
-      ],
+      recentSearches: [],
       addRecentSearch: (loc) =>
         set((state) => {
           const filtered = state.recentSearches.filter(
             (item) => item.name.toLowerCase() !== loc.name.toLowerCase()
           );
-          return {
-            recentSearches: [loc, ...filtered].slice(0, 6)
-          };
+          const next = [loc, ...filtered].slice(0, 6);
+          if (state.currentUserId) {
+            try {
+              localStorage.setItem(`roomora_searches_${state.currentUserId}`, JSON.stringify(next));
+            } catch {}
+          }
+          return { recentSearches: next };
         }),
-      clearRecentSearches: () => set({ recentSearches: [] }),
+      clearRecentSearches: () => {
+        const uid = get().currentUserId;
+        if (uid) {
+          try {
+            localStorage.removeItem(`roomora_searches_${uid}`);
+          } catch {}
+        }
+        set({ recentSearches: [] });
+      },
 
       safetyReports: [],
       addSafetyReport: (reportData) =>
@@ -262,16 +263,62 @@ export const useAppStore = create<AppState>()(
             },
             ...state.safetyReports
           ]
-        }))
+        })),
+
+      loadUserScopedData: (userId: string | null) => {
+        if (!userId) {
+          get().resetAccountData();
+          return;
+        }
+
+        try {
+          const savedProps = JSON.parse(localStorage.getItem(`roomora_saved_props_${userId}`) || '[]');
+          const savedRms = JSON.parse(localStorage.getItem(`roomora_saved_rms_${userId}`) || '[]');
+          const inqs = JSON.parse(localStorage.getItem(`roomora_inquiries_${userId}`) || '[]');
+          const reqs = JSON.parse(localStorage.getItem(`roomora_requests_${userId}`) || '[]');
+          const searches = JSON.parse(localStorage.getItem(`roomora_searches_${userId}`) || '[]');
+
+          set({
+            currentUserId: userId,
+            savedProperties: Array.isArray(savedProps) ? savedProps : [],
+            savedRoommates: Array.isArray(savedRms) ? savedRms : [],
+            inquiries: Array.isArray(inqs) ? inqs : [],
+            roommateRequests: Array.isArray(reqs) ? reqs : [],
+            recentSearches: Array.isArray(searches) ? searches : []
+          });
+        } catch {
+          set({
+            currentUserId: userId,
+            savedProperties: [],
+            savedRoommates: [],
+            inquiries: [],
+            roommateRequests: [],
+            recentSearches: []
+          });
+        }
+      },
+
+      resetAccountData: () =>
+        set({
+          currentUserId: null,
+          savedProperties: [],
+          savedRoommates: [],
+          inquiries: [],
+          roommateRequests: [],
+          recentSearches: [],
+          userProfile: DEFAULT_USER_PROFILE,
+          isOnboarded: false
+        })
     }),
     {
-      name: 'roommate_platform_state_v1',
+      name: 'roommate_platform_state_v2',
       partialize: (state) => ({
         darkMode: state.darkMode,
         selectedLocation: state.selectedLocation,
         radiusKm: state.radiusKm,
         userProfile: state.userProfile,
         isOnboarded: state.isOnboarded,
+        currentUserId: state.currentUserId,
         savedProperties: state.savedProperties,
         savedRoommates: state.savedRoommates,
         inquiries: state.inquiries,

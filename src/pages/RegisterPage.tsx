@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, resendSignupOtp, verifyEmailOtp, isLoading } = useAuthStore();
+  const { sendEmailOtp, verifyEmailOtp, isLoading } = useAuthStore();
 
   // Form states
   const [displayName, setDisplayName] = useState('');
@@ -32,7 +32,7 @@ export const RegisterPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Handle Registration Submit (Step 1: Create Account & Send OTP)
+  // Handle Registration Submit (Step 1: Validate and send OTP code)
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -42,20 +42,17 @@ export const RegisterPage: React.FC = () => {
     if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
 
-    const result = await signUp(email, password, displayName.trim());
+    // Send verification OTP to email using the working Resend/Supabase OTP flow
+    const result = await sendEmailOtp(email, displayName.trim());
     if (result.error) {
-      if (result.error.toLowerCase().includes('already registered')) {
-        setError('An account with this email already exists. Please sign in with your password.');
+      if (result.error.toLowerCase().includes('rate limit')) {
+        setError('Email rate limit reached. Please wait a minute and try again.');
       } else {
         setError(result.error);
       }
-    } else if (result.needsOtp) {
+    } else {
       setOtpSent(true);
       setResendCooldown(30);
-    } else {
-      // Session granted immediately (e.g. if email confirmation is disabled)
-      setSuccess(true);
-      setTimeout(() => navigate('/onboarding'), 1500);
     }
   };
 
@@ -64,7 +61,7 @@ export const RegisterPage: React.FC = () => {
     if (resendCooldown > 0 || isLoading) return;
     setError(null);
 
-    const result = await resendSignupOtp(email);
+    const result = await sendEmailOtp(email, displayName.trim());
     if (result.error) {
       setError(result.error);
     } else {
@@ -72,16 +69,17 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
-  // Handle Verify OTP (Step 2: Enter verification code)
+  // Handle Verify OTP (Step 2: Verify code & save password)
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!otpCode.trim() || otpCode.trim().length < 6) {
-      return setError('Please enter the full verification code sent to your email.');
+      return setError('Please enter the verification code sent to your email.');
     }
 
-    const result = await verifyEmailOtp(email, otpCode.trim());
+    // Verify OTP and set user password simultaneously
+    const result = await verifyEmailOtp(email, otpCode.trim(), password);
     if (result.error) {
       setError(result.error);
     } else {
@@ -172,7 +170,7 @@ export const RegisterPage: React.FC = () => {
               {/* Password */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-password">
-                  Password
+                  Password (for future sign-ins)
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -239,14 +237,14 @@ export const RegisterPage: React.FC = () => {
                   <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
                 ) : (
                   <>
-                    <span>Create Account & Verify</span>
+                    <span>Create Account & Send Code</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
 
               <p className="text-[11px] text-center text-slate-500 dark:text-slate-400">
-                🔒 You only verify your email once with an OTP upon registering. Afterward, you will simply sign in with your password.
+                🔒 You only verify your email with an OTP once now. Afterward, you simply log in with your password.
               </p>
             </form>
           ) : (
@@ -258,7 +256,7 @@ export const RegisterPage: React.FC = () => {
                 </div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Verify Your Email</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  We emailed a one-time verification code to:
+                  We emailed a verification code to:
                 </p>
                 <p className="text-xs font-bold text-teal-600 dark:text-teal-400 font-mono">
                   {email}
@@ -300,7 +298,7 @@ export const RegisterPage: React.FC = () => {
                   <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
                 ) : (
                   <>
-                    <span>Verify & Complete Registration</span>
+                    <span>Verify & Finish Registration</span>
                     <ShieldCheck className="w-4 h-4" />
                   </>
                 )}

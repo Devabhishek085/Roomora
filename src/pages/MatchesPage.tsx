@@ -9,8 +9,11 @@ import {
   Bot,
   Coins,
   Info,
-  MapPin
+  MapPin,
+  ArrowUpDown,
+  RotateCcw
 } from 'lucide-react';
+import { LocationSearchBar } from '../components/LocationSearchBar';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { calculateCompatibility } from '../services/compatibility';
@@ -31,15 +34,16 @@ const MATCH_CITY_PILLS = [
 ];
 
 export const MatchesPage: React.FC = () => {
-  const { userProfile } = useAppStore();
+  const { userProfile, selectedLocation, radiusKm, setRadiusKm } = useAppStore();
   const { user, tokenBalance } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [minScore, setMinScore] = useState<number>(50);
+  const [minScore, setMinScore] = useState<number>(40);
   const [selectedGender, setSelectedGender] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
-  const [sortBy, setSortBy] = useState<'score' | 'budget' | 'age'>('score');
+  const [sortBy, setSortBy] = useState<'distance' | 'score' | 'budget_asc' | 'budget_desc' | 'age'>('distance');
   const [cityFilter, setCityFilter] = useState<string>(searchParams.get('city') || '');
+  const [maxBudget, setMaxBudget] = useState<number>(20000);
 
   useEffect(() => {
     const urlCity = searchParams.get('city');
@@ -51,6 +55,20 @@ export const MatchesPage: React.FC = () => {
       setSearchQuery(urlSearch);
     }
   }, [searchParams]);
+
+  const handleResetFilters = () => {
+    setRadiusKm(5);
+    setMaxBudget(20000);
+    setSortBy('distance');
+    setMinScore(40);
+    setSelectedGender('All');
+    setSearchQuery('');
+    setCityFilter('');
+    const next = new URLSearchParams(searchParams);
+    next.delete('city');
+    next.delete('search');
+    setSearchParams(next);
+  };
 
   // DB profiles state
   const [dbProfiles, setDbProfiles] = useState<RoommateProfile[]>([]);
@@ -72,17 +90,14 @@ export const MatchesPage: React.FC = () => {
       setDbLoading(true);
       setDbError(null);
       const { profiles, error } = await fetchRoommateProfiles(user?.id ?? null, {
-        city: cityFilter || undefined,
-        gender: selectedGender !== 'All' ? selectedGender : undefined,
-        searchQuery: searchQuery || undefined,
-        pageSize: 50,
+        pageSize: 100,
       });
       if (error) setDbError(error);
       else setDbProfiles(profiles);
       setDbLoading(false);
     };
     load();
-  }, [user?.id, cityFilter, selectedGender, searchQuery]);
+  }, [user?.id]);
 
   // Only real registered profiles created with email IDs
   const allProfiles = useMemo((): RoommateProfile[] => {
@@ -97,36 +112,69 @@ export const MatchesPage: React.FC = () => {
     });
   }, [allProfiles, userProfile]);
 
-  // Apply filters
+  // Apply filters (location, budget, radius, gender, score, search)
   const filteredProfiles = useMemo(() => {
+    const locCity = (selectedLocation.city || '').toLowerCase().trim();
+    const locName = (selectedLocation.name || '').toLowerCase().trim();
+    const activeCity = (cityFilter || '').toLowerCase().trim();
+
     let result = evaluatedProfiles.filter(({ roommate, report }) => {
+      // 1. Min compatibility score
       if (report.score < minScore) return false;
+
+      // 2. Gender filter
       if (selectedGender !== 'All' && roommate.gender !== selectedGender) return false;
+
+      // 3. Max Budget filter (roommate's budgetMin must be within maxBudget)
+      if (roommate.budgetMin > maxBudget) return false;
+
+      // 4. City pill filter (if specified)
+      if (activeCity) {
+        const rmCity = (roommate.city || '').toLowerCase();
+        if (!rmCity.includes(activeCity) && !activeCity.includes(rmCity)) {
+          return false;
+        }
+      } else if (locCity || locName) {
+        // 5. Selected location filter from LocationSearchBar
+        const rmCity = (roommate.city || '').toLowerCase();
+        const matchesCity = rmCity && (locCity.includes(rmCity) || locName.includes(rmCity) || rmCity.includes(locCity));
+        const matchesLocality = roommate.targetLocalities?.some((loc) => {
+          const l = loc.toLowerCase();
+          return locName.includes(l) || l.includes(locName) || (locCity && (locCity.includes(l) || l.includes(locCity)));
+        });
+        if (!matchesCity && !matchesLocality && locCity !== '') {
+          return false;
+        }
+      }
+
+      // 6. Text search query
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         const matchesName = roommate.name.toLowerCase().includes(q);
         const matchesInst = roommate.institution.toLowerCase().includes(q);
         const matchesLoc = roommate.targetLocalities.some((l) => l.toLowerCase().includes(q));
         const matchesCity = roommate.city.toLowerCase().includes(q);
         if (!matchesName && !matchesInst && !matchesLoc && !matchesCity) return false;
       }
+
       return true;
     });
 
-    if (sortBy === 'score') {
-      result.sort((a, b) => b.report.score - a.report.score);
-    } else if (sortBy === 'budget') {
-      result.sort((a, b) => a.roommate.budgetMin - b.roommate.budgetMin);
-    } else if (sortBy === 'age') {
-      result.sort((a, b) => a.roommate.age - b.roommate.age);
-    }
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === 'score' || sortBy === 'distance') return b.report.score - a.report.score;
+      if (sortBy === 'budget_asc') return a.roommate.budgetMin - b.roommate.budgetMin;
+      if (sortBy === 'budget_desc') return b.roommate.budgetMax - a.roommate.budgetMax;
+      if (sortBy === 'age') return a.roommate.age - b.roommate.age;
+      return b.report.score - a.report.score;
+    });
 
     return result;
-  }, [evaluatedProfiles, minScore, selectedGender, searchQuery, sortBy]);
+  }, [evaluatedProfiles, minScore, selectedGender, maxBudget, cityFilter, selectedLocation, searchQuery, sortBy]);
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-6">
           <div>
@@ -160,103 +208,173 @@ export const MatchesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Profile count summary */}
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            {filteredProfiles.length} registered roommate profile{filteredProfiles.length !== 1 ? 's' : ''}
-          </span>
-          {!isSupabaseConfigured && (
-            <span className="text-slate-400 dark:text-slate-500">
-              ⚠️ Database not connected
-            </span>
-          )}
+        {/* Location Search Bar with Clear & GPS Near Me */}
+        <div className="w-full">
+          <LocationSearchBar compact />
         </div>
 
-        {/* Location Selector Bar */}
-        <div className="flex flex-wrap items-center gap-2 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm text-xs">
-          <span className="font-semibold text-slate-400 mr-1 flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-teal-500" /> Location:
-          </span>
-          {MATCH_CITY_PILLS.map((c) => {
-            const isActive = (cityFilter.toLowerCase() === c.id.toLowerCase());
-            return (
+        {/* Filter Box with Search Radius, Max Budget, Found count, Reset, and Sort */}
+        <div className="bg-white dark:bg-[#0B101B] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
+          {/* Top Header */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span className="font-bold text-sm text-slate-900 dark:text-white">
+                Filter Verified Roommates
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/80 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-black">
+                {filteredProfiles.length} Found
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
               <button
-                key={c.id}
                 type="button"
-                onClick={() => {
-                  setCityFilter(c.id);
-                  const next = new URLSearchParams(searchParams);
-                  if (c.id) next.set('city', c.id);
-                  else next.delete('city');
-                  setSearchParams(next);
-                }}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                  isActive
-                    ? 'bg-slate-900 dark:bg-teal-400 text-white dark:text-slate-950 shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
+                onClick={handleResetFilters}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors flex items-center gap-1"
               >
-                {c.label}
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset Filters</span>
               </button>
-            );
-          })}
-        </div>
 
-        {/* Filter Controls Bar */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-4">
-          {/* Search box */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, college, city..."
-              className="w-full text-xs pl-9 pr-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border-none text-slate-900 dark:text-white outline-none"
-              id="roommate-search-input"
-            />
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-1.5 text-xs">
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-slate-100 dark:bg-slate-800/90 border-none rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200 font-semibold outline-none cursor-pointer"
+                >
+                  <option value="distance">Distance: Nearest First</option>
+                  <option value="score">Compatibility: Top Match</option>
+                  <option value="budget_asc">Rent: Low to High</option>
+                  <option value="budget_desc">Rent: High to Low</option>
+                  <option value="age">Age: Youngest First</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            {/* Gender filter */}
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400 font-semibold mr-1">Gender:</span>
-              {['All', 'Male', 'Female', 'Non-binary'].map((g) => (
-                <button key={g} type="button" onClick={() => setSelectedGender(g)}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                    selectedGender === g
-                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+          {/* Sliders Grid: Radius & Max Rent */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Radius Slider Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <span>Search Radius</span>
+                <span className="text-teal-600 dark:text-teal-400 font-black">{radiusKm || 5} km</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="12"
+                step="1"
+                value={radiusKm || 5}
+                onChange={(e) => setRadiusKm(Number(e.target.value))}
+                className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
+                <span>1 km (walking)</span>
+                <span>6 km</span>
+                <span>12 km (transit)</span>
+              </div>
+            </div>
+
+            {/* Max Budget Slider Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <span>Max Budget</span>
+                <span className="text-teal-600 dark:text-teal-400 font-black">₹{maxBudget.toLocaleString()}/mo</span>
+              </div>
+              <input
+                type="range"
+                min="5000"
+                max="26000"
+                step="500"
+                value={maxBudget}
+                onChange={(e) => setMaxBudget(Number(e.target.value))}
+                className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
+                <span>₹5,000</span>
+                <span>₹15,000</span>
+                <span>₹26,000</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick City Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+            <span className="font-semibold text-slate-400 mr-1 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-teal-500" /> Quick City:
+            </span>
+            {MATCH_CITY_PILLS.map((c) => {
+              const isActive = (cityFilter.toLowerCase() === c.id.toLowerCase());
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCityFilter(c.id);
+                    const next = new URLSearchParams(searchParams);
+                    if (c.id) next.set('city', c.id);
+                    else next.delete('city');
+                    setSearchParams(next);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                    isActive
+                      ? 'bg-slate-900 dark:bg-teal-400 text-white dark:text-slate-950 shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
-                >{g}</button>
-              ))}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Secondary Controls: Search input, Gender, Min Match */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+            {/* Search box */}
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, college, locality..."
+                className="w-full text-xs pl-9 pr-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 border-none text-slate-900 dark:text-white outline-none"
+                id="roommate-search-input"
+              />
             </div>
 
-            {/* Min compatibility */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-semibold">Min Match:</span>
-              <select value={minScore} onChange={(e) => setMinScore(Number(e.target.value))}
-                className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg text-slate-800 dark:text-slate-200 font-bold outline-none cursor-pointer"
-                id="min-match-select"
-              >
-                <option value={40}>All (40%+)</option>
-                <option value={60}>Moderate (60%+)</option>
-                <option value={75}>High (75%+)</option>
-                <option value={85}>Top (85%+)</option>
-              </select>
-            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              {/* Gender filter */}
+              <div className="flex items-center gap-1">
+                <span className="text-slate-400 font-semibold mr-1">Gender:</span>
+                {['All', 'Male', 'Female', 'Non-binary'].map((g) => (
+                  <button key={g} type="button" onClick={() => setSelectedGender(g)}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                      selectedGender === g
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >{g}</button>
+                ))}
+              </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-semibold">Sort:</span>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'score' | 'budget' | 'age')}
-                className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg text-slate-800 dark:text-slate-200 font-bold outline-none cursor-pointer"
-              >
-                <option value="score">Compatibility</option>
-                <option value="budget">Budget</option>
-                <option value="age">Age</option>
-              </select>
+              {/* Min compatibility */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 font-semibold">Min Match:</span>
+                <select value={minScore} onChange={(e) => setMinScore(Number(e.target.value))}
+                  className="bg-slate-100 dark:bg-slate-800/90 px-2.5 py-1.5 rounded-lg text-slate-800 dark:text-slate-200 font-bold outline-none cursor-pointer"
+                  id="min-match-select"
+                >
+                  <option value={40}>All (40%+)</option>
+                  <option value={60}>Moderate (60%+)</option>
+                  <option value={75}>High (75%+)</option>
+                  <option value={85}>Top (85%+)</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -279,11 +397,30 @@ export const MatchesPage: React.FC = () => {
 
         {/* Roommates Grid */}
         {filteredProfiles.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">No profiles match current filters</h3>
+          <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 max-w-lg mx-auto">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              No roommates match current location or budget filters
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Try setting Min Match to &ldquo;All&rdquo; or clearing filters.
+              Try increasing your Max Budget, setting Min Match to &ldquo;All&rdquo;, or resetting filters to view all verified roommates.
             </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                onClick={handleResetFilters}
+                className="px-4 py-2 rounded-xl bg-teal-500 text-slate-950 font-bold text-xs hover:bg-teal-400 transition-colors"
+              >
+                Reset Filters
+              </button>
+              <Link
+                to="/onboarding"
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                Complete Quiz &amp; Register
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

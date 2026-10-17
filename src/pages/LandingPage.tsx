@@ -14,7 +14,8 @@ import {
   Heart,
   ChevronRight,
   Coins,
-  Bot
+  Bot,
+  Search
 } from 'lucide-react';
 import { HeroScene } from '../components/3d/HeroScene';
 import { LocationSearchBar } from '../components/LocationSearchBar';
@@ -25,6 +26,15 @@ import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
 import type { RoommateProfile } from '../types';
 
+const CITY_PILLS = [
+  { id: 'Delhi', label: 'Delhi NCR' },
+  { id: 'Bengaluru', label: 'Bengaluru' },
+  { id: 'Mumbai', label: 'Mumbai' },
+  { id: 'Pune', label: 'Pune' },
+  { id: 'Hyderabad', label: 'Hyderabad' },
+  { id: 'all', label: 'All Locations' },
+];
+
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedLocation, userProfile, savedProperties, toggleSaveProperty } = useAppStore();
@@ -32,10 +42,12 @@ export const LandingPage: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [budgetFilter, setBudgetFilter] = useState<number>(12000);
   const [realProfiles, setRealProfiles] = useState<RoommateProfile[]>([]);
+  const [activeCityFilter, setActiveCityFilter] = useState<string>('Delhi');
+  const [localitySearch, setLocalitySearch] = useState<string>('');
 
   useEffect(() => {
     let isCurrent = true;
-    fetchRoommateProfiles(user?.id ?? null, { pageSize: 10 }).then(({ profiles }) => {
+    fetchRoommateProfiles(user?.id ?? null, { pageSize: 50 }).then(({ profiles }) => {
       if (isCurrent && profiles.length > 0) {
         setRealProfiles(profiles);
       }
@@ -54,6 +66,34 @@ export const LandingPage: React.FC = () => {
       .sort((a, b) => b.compat.score - a.compat.score)
       .slice(0, 3);
   }, [realProfiles, userProfile]);
+
+  // Location-based roommate discovery
+  const locationRoommates = useMemo(() => {
+    return realProfiles
+      .filter((rm) => {
+        if (activeCityFilter !== 'all') {
+          const matchesCity = rm.city.toLowerCase().includes(activeCityFilter.toLowerCase());
+          const matchesLocality = rm.targetLocalities?.some((loc) =>
+            loc.toLowerCase().includes(activeCityFilter.toLowerCase())
+          );
+          if (!matchesCity && !matchesLocality) return false;
+        }
+        if (localitySearch.trim()) {
+          const q = localitySearch.toLowerCase();
+          const matchName = rm.name.toLowerCase().includes(q);
+          const matchInst = rm.institution.toLowerCase().includes(q);
+          const matchLoc = rm.targetLocalities?.some((l) => l.toLowerCase().includes(q));
+          const matchCity = rm.city.toLowerCase().includes(q);
+          if (!matchName && !matchInst && !matchLoc && !matchCity) return false;
+        }
+        return true;
+      })
+      .map((rm) => ({
+        roommate: rm,
+        compat: calculateCompatibility(userProfile, rm)
+      }))
+      .sort((a, b) => b.compat.score - a.compat.score);
+  }, [realProfiles, activeCityFilter, localitySearch, userProfile]);
 
   // Generate listings around currently selected location (secondary section)
   const featuredListings = useMemo(() => {
@@ -376,6 +416,186 @@ export const LandingPage: React.FC = () => {
             );
           })}
         </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════
+          SECTION: ROOMMATES BY LOCATION
+          ═══════════════════════════════════════════════════ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-200/80 dark:border-slate-800/80">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 text-xs font-bold mb-2">
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Roommates by Location</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-slate-900 dark:text-white">
+              Find Roommates Looking in Your Area
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+              Connect with registered students and flat-seekers looking for rooms in specific colleges and localities.
+            </p>
+          </div>
+
+          <Link
+            to={`/matches${activeCityFilter !== 'all' ? `?city=${encodeURIComponent(activeCityFilter)}` : ''}`}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+          >
+            <span>Explore all {activeCityFilter !== 'all' ? `in ${activeCityFilter}` : 'roommates'}</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Location selector pills & search */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
+          {/* City pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-400 mr-1 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-teal-500" /> City:
+            </span>
+            {CITY_PILLS.map((c) => {
+              const isActive = activeCityFilter.toLowerCase() === c.id.toLowerCase();
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveCityFilter(c.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-slate-900 dark:bg-teal-400 text-white dark:text-slate-950 shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick locality search */}
+          <div className="relative min-w-[220px] max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={localitySearch}
+              onChange={(e) => setLocalitySearch(e.target.value)}
+              placeholder="Search locality, college, name..."
+              className="w-full text-xs pl-9 pr-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border-none text-slate-900 dark:text-white outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Location Roommates Grid */}
+        {locationRoommates.length === 0 ? (
+          <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 max-w-lg mx-auto">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              No roommates registered in {activeCityFilter === 'all' ? 'this search' : activeCityFilter} yet
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Be the first to list yourself as a roommate here, or check out our active roommates in Delhi NCR.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => { setActiveCityFilter('Delhi'); setLocalitySearch(''); }}
+                className="px-4 py-2 rounded-xl bg-teal-500 text-slate-950 font-bold text-xs hover:bg-teal-400 transition-colors"
+              >
+                View Delhi NCR Roommates
+              </button>
+              <Link
+                to="/onboarding"
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                Complete Quiz & Register
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {locationRoommates.map(({ roommate, compat }) => (
+              <div
+                key={roommate.id}
+                className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+              >
+                <div className="space-y-4">
+                  {/* Top: Avatar + Match Score */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={roommate.avatarUrl}
+                        alt={roommate.name}
+                        className="w-14 h-14 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm"
+                      />
+                      <div>
+                        <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{roommate.name}</span>
+                          <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/80 px-1.5 py-0.5 rounded-md border border-teal-200/60 dark:border-teal-800">
+                            {roommate.age} yrs
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                          {roommate.occupation} {roommate.institution ? `• ${roommate.institution}` : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-black px-2 py-1 rounded-lg bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800">
+                        {compat.score}%
+                      </div>
+                      <span className="text-[9px] text-slate-400 font-semibold uppercase">Match</span>
+                    </div>
+                  </div>
+
+                  {/* Location & Budget Tags */}
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                      <MapPin className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                      <span className="truncate">{roommate.city || 'Delhi NCR'}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                      <span>Target Budget:</span>
+                      <strong className="text-slate-900 dark:text-white font-bold">
+                        ₹{(roommate.budgetMin || 0).toLocaleString()} - ₹{(roommate.budgetMax || 0).toLocaleString()}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Lifestyle pills */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      {roommate.sleepSchedule}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      {roommate.foodPreference}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      Cleanliness {roommate.cleanliness}/5
+                    </span>
+                  </div>
+
+                  {/* Bio */}
+                  {roommate.bio && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 italic">
+                      &ldquo;{roommate.bio}&rdquo;
+                    </p>
+                  )}
+                </div>
+
+                {/* Connect CTA */}
+                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                  <Link
+                    to={`/matches?search=${encodeURIComponent(roommate.name)}`}
+                    className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-teal-500 hover:text-slate-950 dark:hover:bg-teal-400 dark:hover:text-slate-950 text-white dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-teal-500 group-hover:text-slate-950 dark:group-hover:bg-teal-400 dark:group-hover:text-slate-950"
+                  >
+                    <span>Connect with {roommate.name.split(' ')[0]}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Testimonials */}

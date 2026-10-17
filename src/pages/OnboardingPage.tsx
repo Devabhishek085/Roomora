@@ -1,39 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowRight, 
   ArrowLeft, 
   Sparkles, 
-  Check, 
-  HelpCircle, 
   ShieldCheck, 
-  Sliders, 
-  Lock, 
-  Eye, 
-  EyeOff 
+  Lock,
+  Camera,
+  Upload,
+  User as UserIcon,
+  MapPin,
+  Building
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, createEmptyUserProfile } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import type { 
   UserOnboardingProfile, 
-  SleepSchedule, 
-  FoodPreference, 
-  SmokingDrinking, 
-  NoiseTolerance, 
-  GuestPolicy,
   AccommodationType 
 } from '../types';
 
+const AVATAR_PRESETS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80'
+];
+
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { userProfile, completeOnboarding } = useAppStore();
-  const { user, updateProfile } = useAuthStore();
+  const { completeOnboarding } = useAppStore();
+  const { user, dbProfile, updateProfile } = useAuthStore();
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [form, setForm] = useState<UserOnboardingProfile>({ ...userProfile });
+  // Initialize completely clean for the active user (no pre-filled mock values!)
+  const [form, setForm] = useState<UserOnboardingProfile>(() => {
+    const initialName = dbProfile?.display_name || user?.user_metadata?.display_name || '';
+    const clean = createEmptyUserProfile(initialName);
+
+    // If this existing user already previously filled parts of their DB profile, restore it
+    if (dbProfile && dbProfile.profile_completed_at) {
+      return {
+        ...clean,
+        name: dbProfile.display_name || initialName,
+        avatarUrl: dbProfile.avatar_url || '',
+        age: dbProfile.age ?? 20,
+        gender: (dbProfile.gender as any) || 'Male',
+        occupation: (dbProfile.occupation as any) || 'College Student',
+        institution: dbProfile.institution || '',
+        city: dbProfile.city || '',
+        budgetMin: dbProfile.budget_min ?? 5000,
+        budgetMax: dbProfile.budget_max ?? 15000,
+        moveInDate: dbProfile.move_in_date || '',
+        accommodationType: (dbProfile.accommodation_type as any) || 'PG',
+        sharingPreference: (dbProfile.sharing_preference as any) || 'Twin Sharing',
+        sleepSchedule: (dbProfile.sleep_schedule as any) || 'Flexible',
+        cleanliness: dbProfile.cleanliness ?? 3,
+        foodPreference: (dbProfile.food_preference as any) || 'Vegetarian',
+        smokingDrinking: (dbProfile.smoking_drinking as any) || 'Never',
+        noiseTolerance: (dbProfile.noise_tolerance as any) || 'Moderate',
+        guestPolicy: (dbProfile.guest_policy as any) || 'Rarely',
+        privacyNeeds: (dbProfile.privacy_needs as any) || 'Moderate',
+        bio: dbProfile.bio || '',
+      };
+    }
+    return clean;
+  });
+
+  // Handle local photo upload with canvas resize for crisp, lightweight storage
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Photo must be smaller than 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setForm(prev => ({ ...prev, avatarUrl: dataUrl }));
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const nextStep = () => {
     if (step < totalSteps) {
@@ -47,14 +129,15 @@ export const OnboardingPage: React.FC = () => {
       if (user) {
         updateProfile({
           display_name: form.name,
-          age: form.age,
+          avatar_url: form.avatarUrl || null,
+          age: form.age || 20,
           gender: form.gender,
           occupation: form.occupation,
           institution: form.institution,
           city: form.city,
           budget_min: form.budgetMin,
           budget_max: form.budgetMax,
-          move_in_date: form.moveInDate,
+          move_in_date: form.moveInDate || null,
           accommodation_type: form.accommodationType,
           sharing_preference: form.sharingPreference,
           sleep_schedule: form.sleepSchedule,
@@ -108,8 +191,8 @@ export const OnboardingPage: React.FC = () => {
             {step === 4 && 'Your Bio & Privacy Preferences'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            {step === 1 && 'Basic details so fellow students know your college and target budget.'}
-            {step === 2 && 'We ask these to prevent roommate conflict over lights-out hours and dishes.'}
+            {step === 1 && 'Add your photo and basic college details so potential roommates recognize you.'}
+            {step === 2 && 'Prevent roommate conflict over lights-out hours and daily habits.'}
             {step === 3 && 'Choose which lifestyle factors matter most to you, and mark non-negotiables.'}
             {step === 4 && 'Add a friendly student bio and control what appears on your public card.'}
           </p>
@@ -125,21 +208,98 @@ export const OnboardingPage: React.FC = () => {
 
         {/* Form Container */}
         <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xl space-y-6">
-          {/* STEP 1: Academic & Housing */}
+          {/* STEP 1: Academic & Housing + Photo */}
           {step === 1 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Profile Photo Section */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Profile Photo
+                </label>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  {/* Photo Preview Circle */}
+                  <div className="relative group shrink-0">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-teal-500 shadow-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      {form.avatarUrl ? (
+                        <img src={form.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                          <Camera className="w-6 h-6 mb-0.5" />
+                          <span className="text-[9px] font-medium">Add Photo</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions & Presets */}
+                  <div className="flex-1 space-y-2 text-center sm:text-left">
+                    <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-sm active:scale-95"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload from Device</span>
+                      </button>
+                      {form.avatarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, avatarUrl: '' }))}
+                          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-rose-500 text-xs transition"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="pt-0.5">
+                      <span className="text-[10px] text-slate-400 block mb-1">Or pick a quick avatar:</span>
+                      <div className="flex items-center gap-1.5 justify-center sm:justify-start">
+                        {AVATAR_PRESETS.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setForm(prev => ({ ...prev, avatarUrl: preset }))}
+                            className={`w-8 h-8 rounded-lg overflow-hidden border transition-all ${
+                              form.avatarUrl === preset
+                                ? 'border-teal-500 ring-2 ring-teal-500/40 scale-105'
+                                : 'border-slate-200 dark:border-slate-700 opacity-70 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={preset} alt={`Avatar ${idx}`} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Name & Age */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Your Name
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Abhishek"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className="w-full text-xs pl-9 pr-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -148,26 +308,51 @@ export const OnboardingPage: React.FC = () => {
                   <input
                     type="number"
                     min={17}
-                    max={35}
-                    value={form.age}
+                    max={50}
+                    placeholder="21"
+                    value={form.age || ''}
                     onChange={(e) => setForm({ ...form, age: Number(e.target.value) })}
-                    className="w-full text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    className="w-full text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
               </div>
 
+              {/* College & City */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     College / Institution
                   </label>
-                  <input
-                    type="text"
-                    value={form.institution}
-                    onChange={(e) => setForm({ ...form, institution: e.target.value })}
-                    className="w-full text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Delhi University / IIT / St. Stephen's"
+                      value={form.institution}
+                      onChange={(e) => setForm({ ...form, institution: e.target.value })}
+                      className="w-full text-xs pl-9 pr-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    City / Target Area
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="e.g. New Delhi, Bengaluru, Mumbai"
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      className="w-full text-xs pl-9 pr-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Occupation & Gender */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Occupation / Status
@@ -181,6 +366,21 @@ export const OnboardingPage: React.FC = () => {
                     <option value="Intern">Tech Intern</option>
                     <option value="Working Professional">Working Professional</option>
                     <option value="Freelancer">Freelancer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={form.gender}
+                    onChange={(e) => setForm({ ...form, gender: e.target.value as any })}
+                    className="w-full text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Non-binary">Non-binary</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
                   </select>
                 </div>
               </div>
@@ -198,7 +398,7 @@ export const OnboardingPage: React.FC = () => {
                     <span className="text-[10px] text-slate-400 block mb-1">Minimum Budget</span>
                     <input
                       type="range"
-                      min={4000}
+                      min={3000}
                       max={15000}
                       step={500}
                       value={form.budgetMin}
@@ -210,8 +410,8 @@ export const OnboardingPage: React.FC = () => {
                     <span className="text-[10px] text-slate-400 block mb-1">Maximum Budget</span>
                     <input
                       type="range"
-                      min={7000}
-                      max={30000}
+                      min={6000}
+                      max={35000}
                       step={500}
                       value={form.budgetMax}
                       onChange={(e) => setForm({ ...form, budgetMax: Number(e.target.value) })}
@@ -250,39 +450,37 @@ export const OnboardingPage: React.FC = () => {
           {step === 2 && (
             <div className="space-y-5 animate-in fade-in duration-200">
               {/* Sleep schedule */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Sleep Schedule (Circadian Rhythm)
-                  </label>
-                  <span className="text-[10px] text-teal-600 dark:text-teal-400">Why? Aligns lights-out hours</span>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Circadian Routine / Sleep Schedule
+                </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['Night Owl', 'Early Bird', 'Flexible'] as SleepSchedule[]).map((sched) => (
+                  {(['Early Bird', 'Night Owl', 'Flexible'] as const).map((sched) => (
                     <button
                       key={sched}
                       type="button"
                       onClick={() => setForm({ ...form, sleepSchedule: sched })}
-                      className={`p-3 rounded-xl text-xs font-bold border text-center transition-all ${
+                      className={`py-3 rounded-2xl text-xs font-bold border transition-all ${
                         form.sleepSchedule === sched
-                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300'
-                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shadow-sm'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {sched === 'Night Owl' && '🦉 '}
-                      {sched === 'Early Bird' && '🌅 '}
-                      {sched === 'Flexible' && '⚖️ '}
-                      {sched}
+                      {sched === 'Early Bird' && '🌅 Early Bird'}
+                      {sched === 'Night Owl' && '🦉 Night Owl'}
+                      {sched === 'Flexible' && '⚖️ Flexible'}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Cleanliness rating */}
-              <div className="space-y-1.5 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-200">
-                  <span>Cleanliness & Tidiness Standard</span>
-                  <span className="text-teal-600 dark:text-teal-400 font-black">{form.cleanliness} / 5</span>
+              {/* Cleanliness Level */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Cleanliness Standard (1 = Relaxed, 5 = Deep-Clean Fanatic)
+                  </label>
+                  <span className="text-teal-500 font-bold text-xs">{form.cleanliness} / 5</span>
                 </div>
                 <input
                   type="range"
@@ -292,77 +490,74 @@ export const OnboardingPage: React.FC = () => {
                   onChange={(e) => setForm({ ...form, cleanliness: Number(e.target.value) })}
                   className="w-full accent-teal-500 cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>1 (Relaxed / Casual)</span>
-                  <span>3 (Moderate)</span>
-                  <span>5 (Spotless / Daily Chores)</span>
-                </div>
               </div>
 
-              {/* Food preference */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Dietary / Cooking Preference
+              {/* Food Preference */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Dietary Preference
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(['Vegetarian', 'Non-Vegetarian', 'Eggetarian', 'Vegan'] as FoodPreference[]).map((f) => (
+                  {(['Vegetarian', 'Eggetarian', 'Non-Vegetarian', 'Vegan'] as const).map((food) => (
                     <button
-                      key={f}
+                      key={food}
                       type="button"
-                      onClick={() => setForm({ ...form, foodPreference: f })}
-                      className={`py-2 px-1 text-center rounded-xl text-xs font-bold border transition-all ${
-                        form.foodPreference === f
+                      onClick={() => setForm({ ...form, foodPreference: food })}
+                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                        form.foodPreference === food
                           ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300'
-                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {f}
+                      {food}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Smoking / Alcohol */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Smoking & Alcohol Tolerance in Shared Room
+              {/* Smoking/Drinking */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Smoking / Social Drinking
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['Never', 'Occasionally', 'Fine'] as SmokingDrinking[]).map((hab) => (
+                  {(['Never', 'Occasionally', 'Fine'] as const).map((opt) => (
                     <button
-                      key={hab}
+                      key={opt}
                       type="button"
-                      onClick={() => setForm({ ...form, smokingDrinking: hab })}
-                      className={`p-2.5 text-center rounded-xl text-xs font-bold border transition-all ${
-                        form.smokingDrinking === hab
+                      onClick={() => setForm({ ...form, smokingDrinking: opt })}
+                      className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                        form.smokingDrinking === opt
                           ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300'
-                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {hab}
+                      {opt === 'Never' && '🚫 Non-Smoker'}
+                      {opt === 'Occasionally' && '🍻 Occasionally'}
+                      {opt === 'Fine' && '👍 Smoker/Social'}
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Guest Policy */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Friends / Guest Policy in Room
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Guest Policy (Friends / Sleepovers)
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['Rarely', 'Weekends Only', 'Flexible'] as GuestPolicy[]).map((gp) => (
+                  {(['Rarely', 'Weekends Only', 'Flexible'] as const).map((guest) => (
                     <button
-                      key={gp}
+                      key={guest}
                       type="button"
-                      onClick={() => setForm({ ...form, guestPolicy: gp })}
-                      className={`p-2.5 text-center rounded-xl text-xs font-bold border transition-all ${
-                        form.guestPolicy === gp
+                      onClick={() => setForm({ ...form, guestPolicy: guest })}
+                      className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                        form.guestPolicy === guest
                           ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300'
-                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {gp}
+                      {guest}
                     </button>
                   ))}
                 </div>
@@ -370,18 +565,18 @@ export const OnboardingPage: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 3: Importance Weights & Hard Constraints */}
+          {/* STEP 3: Weights & Hard Limits */}
           {step === 3 && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Set Factor Importance Weights (1 to 5)
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  How much does each factor matter to you? (1 = Low, 5 = Critical)
                 </h3>
 
                 {/* Sleep weight */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span>Sleep Schedule Importance</span>
+                    <span>Sleep Schedule Match Importance</span>
                     <strong className="text-teal-500">{form.weights.sleepWeight} / 5</strong>
                   </div>
                   <input
@@ -488,7 +683,7 @@ export const OnboardingPage: React.FC = () => {
                   rows={4}
                   value={form.bio}
                   onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                  placeholder="Tell potential roommates about your study routine, hobbies, and what kind of space you enjoy..."
+                  placeholder="Tell potential roommates about your hobbies, routine, and what kind of living space you enjoy..."
                   className="w-full text-xs p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500/50"
                 />
               </div>

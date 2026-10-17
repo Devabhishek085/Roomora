@@ -12,14 +12,18 @@ import {
   Users, 
   ExternalLink,
   Lock,
-  Compass
+  Compass,
+  Camera
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { generateDemoListings } from '../services/listings-generator';
 import { DEMO_ROOMMATES, calculateCompatibility } from '../services/compatibility';
 import { AadhaarVerificationCard } from '../components/AadhaarVerificationCard';
 
 export const DashboardPage: React.FC = () => {
+  const { user, dbProfile, updateProfile } = useAuthStore();
+  const photoInputRef = React.useRef<HTMLInputElement | null>(null);
   const { 
     userProfile, 
     updateUserProfile, 
@@ -59,30 +63,97 @@ export const DashboardPage: React.FC = () => {
     return DEMO_ROOMMATES.filter((r) => savedRoommates.includes(r.id));
   }, [savedRoommates]);
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 400;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          updateUserProfile({ avatarUrl: dataUrl });
+          if (user) {
+            updateProfile({ avatar_url: dataUrl });
+          }
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Profile Card Header */}
         <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg shadow-teal-500/20">
-              {userProfile.name ? userProfile.name[0] : 'U'}
+            <div className="relative group shrink-0">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-tr from-teal-500 to-emerald-400 text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg shadow-teal-500/20 border border-teal-500/30">
+                {(userProfile.avatarUrl || dbProfile?.avatar_url) ? (
+                  <img
+                    src={userProfile.avatarUrl || dbProfile?.avatar_url || ''}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{(userProfile.name || dbProfile?.display_name) ? (userProfile.name || dbProfile?.display_name || '')[0] : 'U'}</span>
+                )}
+              </div>
+              <input
+                type="file"
+                ref={photoInputRef}
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                title="Change Photo"
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-teal-500 hover:bg-teal-400 text-slate-950 flex items-center justify-center shadow-md transition active:scale-95"
+              >
+                <Camera className="w-3 h-3" />
+              </button>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-extrabold font-heading text-slate-900 dark:text-white">
-                  {userProfile.name || 'Student Profile'}
+                  {userProfile.name || dbProfile?.display_name || 'Student Profile'}
                 </h1>
                 <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 text-xs font-bold">
-                  {userProfile.occupation}
+                  {userProfile.occupation || dbProfile?.occupation || 'Student'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {userProfile.institution} • {userProfile.city}
+                {userProfile.institution || dbProfile?.institution || 'College not set'} • {userProfile.city || dbProfile?.city || 'Location not set'}
               </p>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 max-w-lg italic">
-                &ldquo;{userProfile.bio}&rdquo;
-              </p>
+              {userProfile.bio || dbProfile?.bio ? (
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 max-w-lg italic">
+                  &ldquo;{userProfile.bio || dbProfile?.bio}&rdquo;
+                </p>
+              ) : null}
             </div>
           </div>
 

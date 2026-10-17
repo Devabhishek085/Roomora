@@ -22,7 +22,7 @@ import { useAuthStore } from '../store/useAuthStore';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const { darkMode, toggleDarkMode, savedProperties, savedRoommates } = useAppStore();
+  const { darkMode, toggleDarkMode, savedProperties, savedRoommates, resetUserProfile } = useAppStore();
   const { user, tokenBalance, signOut } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -141,7 +141,7 @@ export const Navbar: React.FC = () => {
                   <span>{user.email?.split('@')[0] || 'Profile'}</span>
                 </Link>
                 <button
-                  onClick={() => signOut()}
+                  onClick={() => { signOut(); resetUserProfile(); }}
                   className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
                   title="Sign out"
                 >
@@ -213,7 +213,7 @@ export const Navbar: React.FC = () => {
 
             {user ? (
               <button
-                onClick={() => { signOut(); setMobileMenuOpen(false); }}
+                onClick={() => { signOut(); resetUserProfile(); setMobileMenuOpen(false); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <LogOut className="w-4 h-4 text-rose-500" />

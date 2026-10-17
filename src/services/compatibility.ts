@@ -255,7 +255,12 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     bio: 'Third-year CS student. Building full-stack projects, loves chai breaks, neat and very respectful of sleep hours.',
     isVerifiedDemo: true,
     demoLabel: 'AI-generated demo profile',
-    socialBadge: "Open Source Contributor"
+    socialBadge: "Open Source Contributor",
+    flatImages: [
+      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80'
+    ]
   },
   {
     id: 'rm-2',
@@ -283,7 +288,11 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     bio: 'Final year IT student interning remotely in AI. Need quiet study environment, keep things spotless, and love peaceful vibes.',
     isVerifiedDemo: true,
     demoLabel: 'AI-generated demo profile',
-    socialBadge: "Dean’s Honor List"
+    socialBadge: "Dean’s Honor List",
+    flatImages: [
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=800&q=80'
+    ]
   },
   {
     id: 'rm-3',
@@ -311,7 +320,11 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     bio: 'Remote frontend dev. Looking for a flatmate who enjoys gaming and deep tech chats. Split Wi-Fi and cook healthy dinners.',
     isVerifiedDemo: true,
     demoLabel: 'AI-generated demo profile',
-    socialBadge: "GitHub Open Source Contributor"
+    socialBadge: "GitHub Open Source Contributor",
+    flatImages: [
+      'https://images.unsplash.com/photo-1540518614846-7ede433c4ef3?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80'
+    ]
   },
   {
     id: 'rm-4',

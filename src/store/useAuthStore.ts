@@ -328,7 +328,20 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', user.id);
 
-    if (error) return { error: error.message };
+    if (error) {
+      // If flat_images column does not exist yet in Supabase, retry without it
+      if (error.message && error.message.includes('flat_images')) {
+        const { flat_images, ...fallbackUpdates } = updates as any;
+        const fallback = await supabase
+          .from('profiles')
+          .update({ ...fallbackUpdates, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+        if (fallback.error) return { error: fallback.error.message };
+        await get().refreshProfile();
+        return { error: null };
+      }
+      return { error: error.message };
+    }
 
     await get().refreshProfile();
     return { error: null };

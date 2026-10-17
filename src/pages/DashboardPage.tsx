@@ -13,7 +13,12 @@ import {
   ExternalLink,
   Lock,
   Compass,
-  Camera
+  Camera,
+  Home,
+  Image as ImageIcon,
+  Plus,
+  Eye,
+  X
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -25,6 +30,8 @@ import type { RoommateProfile } from '../types';
 export const DashboardPage: React.FC = () => {
   const { user, dbProfile, updateProfile } = useAuthStore();
   const photoInputRef = React.useRef<HTMLInputElement | null>(null);
+  const flatPhotosInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const { 
     userProfile, 
     updateUserProfile, 
@@ -47,7 +54,7 @@ export const DashboardPage: React.FC = () => {
     }
   }, [user?.id, loadUserScopedData]);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'saved' | 'inquiries' | 'requests' | 'privacy'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'photos' | 'saved' | 'inquiries' | 'requests' | 'privacy'>('overview');
 
   // Compute profile completion percentage
   const profileCompletion = useMemo(() => {
@@ -129,6 +136,60 @@ export const DashboardPage: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleFlatPhotosUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      if (file.size > 8 * 1024 * 1024) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 1000;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            const currentImages = userProfile.flatImages || dbProfile?.flat_images || [];
+            const updated = [...currentImages, dataUrl].slice(0, 10);
+            updateUserProfile({ flatImages: updated });
+            if (user) {
+              updateProfile({ flat_images: updated });
+            }
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveFlatPhoto = (index: number) => {
+    const current = userProfile.flatImages || dbProfile?.flat_images || [];
+    const next = current.filter((_, i) => i !== index);
+    updateUserProfile({ flatImages: next });
+    if (user) {
+      updateProfile({ flat_images: next });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -205,6 +266,7 @@ export const DashboardPage: React.FC = () => {
         <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           {[
             { id: 'overview', label: 'Overview', icon: User },
+            { id: 'photos', label: `My Room Photos (${(userProfile.flatImages || dbProfile?.flat_images || []).length})`, icon: Home },
             { id: 'saved', label: `Saved (${savedProperties.length + savedRoommates.length})`, icon: Heart },
             { id: 'inquiries', label: `PG Inquiries (${inquiries.length})`, icon: Building2 },
             { id: 'requests', label: `Roommate Connects (${roommateRequests.length})`, icon: Send },
@@ -259,6 +321,99 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Flat / Room Pictures Showcase Card */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                    <Home className="w-4 h-4 text-teal-500" />
+                    <span>My Flat &amp; Room Pictures</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    These photos are shown on your profile when prospective roommates open your match card.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={flatPhotosInputRef}
+                    accept="image/*"
+                    multiple
+                    onChange={handleFlatPhotosUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => flatPhotosInputRef.current?.click()}
+                    className="px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Upload Picture</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('photos')}
+                    className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                  >
+                    Manage ({((userProfile.flatImages || dbProfile?.flat_images || []).length)})
+                  </button>
+                </div>
+              </div>
+
+              {(userProfile.flatImages || dbProfile?.flat_images || []).length === 0 ? (
+                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-2">
+                  <div className="w-10 h-10 mx-auto rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                    <Home className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No room or flat photos uploaded yet</p>
+                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                    Adding pictures of your bedroom, living space, or balcony dramatically increases connection response rates!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => flatPhotosInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Upload First Photo</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                  {(userProfile.flatImages || dbProfile?.flat_images || []).map((imgUrl, idx) => (
+                    <div
+                      key={idx}
+                      className="relative group rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 aspect-video shadow-sm"
+                    >
+                      <img src={imgUrl} alt={`Room photo ${idx + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(imgUrl)}
+                          className="p-1.5 rounded-lg bg-white/90 text-slate-900 hover:bg-white transition"
+                          title="View Full Size"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFlatPhoto(idx)}
+                          className="p-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition"
+                          title="Delete Photo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/70 text-[9px] font-bold text-white">
+                        #{idx + 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Recent Searches */}
             <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
@@ -304,6 +459,106 @@ export const DashboardPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* TAB: MY ROOM PHOTOS (DEDICATED STUDIO) */}
+        {activeTab === 'photos' && (
+          <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+              <div>
+                <h3 className="text-xl font-bold font-heading text-slate-900 dark:text-white flex items-center gap-2">
+                  <Home className="w-5 h-5 text-teal-500" />
+                  <span>My Flat &amp; Room Photo Studio</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+                  Upload pictures of your room, flat, or PG so potential roommates can see where you live. Pictures are displayed in full high-definition on your roommate profile card.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={flatPhotosInputRef}
+                  accept="image/*"
+                  multiple
+                  onChange={handleFlatPhotosUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => flatPhotosInputRef.current?.click()}
+                  className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-md"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Upload Photos from Device</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Photos Gallery */}
+            {(userProfile.flatImages || dbProfile?.flat_images || []).length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-slate-50 dark:bg-slate-800/40 border-2 border-dashed border-slate-200 dark:border-slate-700 space-y-3 max-w-md mx-auto">
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Home className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">No photos uploaded yet</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Profiles with room photos get up to 3.5× more connection requests.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => flatPhotosInputRef.current?.click()}
+                  className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition"
+                >
+                  Choose Images to Upload
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span>{(userProfile.flatImages || dbProfile?.flat_images || []).length} photos uploaded (Click any to enlarge)</span>
+                  <span className="text-teal-600 dark:text-teal-400 font-bold">Visible to prospective roommates</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {(userProfile.flatImages || dbProfile?.flat_images || []).map((imgUrl, idx) => (
+                    <div
+                      key={idx}
+                      className="group relative rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 aspect-video shadow-sm hover:shadow-md transition-all"
+                    >
+                      <img src={imgUrl} alt={`Room Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                      
+                      {/* Top Bar on hover */}
+                      <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-between">
+                        <div className="flex justify-between items-center">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-950/80 text-[10px] font-bold text-white">
+                            Photo #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFlatPhoto(idx)}
+                            className="p-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white transition active:scale-90"
+                            title="Delete Picture"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(imgUrl)}
+                          className="w-full py-1.5 rounded-xl bg-white/90 hover:bg-white text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Full Size</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -532,6 +787,39 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
       </div>
+      {/* Full-Screen Picture Lightbox Modal */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col"
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/80">
+              <span className="font-bold text-xs text-white flex items-center gap-2">
+                <Home className="w-4 h-4 text-teal-400" />
+                <span>Room / Flat Photo Preview</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-2 flex items-center justify-center overflow-auto max-h-[80vh]">
+              <img
+                src={previewImage}
+                alt="Enlarged Room Preview"
+                className="max-w-full max-h-[75vh] object-contain rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

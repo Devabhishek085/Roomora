@@ -10,7 +10,11 @@ import {
   Upload,
   User as UserIcon,
   MapPin,
-  Building
+  Building,
+  Home,
+  Image as ImageIcon,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAppStore, createEmptyUserProfile } from '../store/useAppStore';
@@ -29,14 +33,22 @@ const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80'
 ];
 
+const FLAT_PHOTO_PRESETS = [
+  { name: 'Cozy Bedroom', url: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=600&q=80' },
+  { name: 'Sunny Living Area', url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80' },
+  { name: 'Modern Studio', url: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=80' },
+  { name: 'Balcony View', url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80' }
+];
+
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { completeOnboarding } = useAppStore();
+  const { completeOnboarding, userProfile } = useAppStore();
   const { user, dbProfile, updateProfile } = useAuthStore();
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const flatPhotosInputRef = useRef<HTMLInputElement | null>(null);
 
   // Initialize completely clean for the active user (no pre-filled mock values!)
   const [form, setForm] = useState<UserOnboardingProfile>(() => {
@@ -67,9 +79,13 @@ export const OnboardingPage: React.FC = () => {
         guestPolicy: (dbProfile.guest_policy as any) || 'Rarely',
         privacyNeeds: (dbProfile.privacy_needs as any) || 'Moderate',
         bio: dbProfile.bio || '',
+        flatImages: dbProfile.flat_images || userProfile.flatImages || [],
       };
     }
-    return clean;
+    return {
+      ...clean,
+      flatImages: userProfile.flatImages || []
+    };
   });
 
   // Handle local photo upload with canvas resize for crisp, lightweight storage
@@ -117,6 +133,59 @@ export const OnboardingPage: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  // Handle flat/room photo upload with canvas resize
+  const handleFlatPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      if (file.size > 8 * 1024 * 1024) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 1000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            setForm((prev) => ({
+              ...prev,
+              flatImages: [...(prev.flatImages || []), dataUrl].slice(0, 8)
+            }));
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveFlatPhoto = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      flatImages: (prev.flatImages || []).filter((_, i) => i !== index)
+    }));
+  };
+
   const nextStep = () => {
     if (step < totalSteps) {
       setStep(step + 1);
@@ -130,6 +199,7 @@ export const OnboardingPage: React.FC = () => {
         updateProfile({
           display_name: form.name,
           avatar_url: form.avatarUrl || null,
+          flat_images: form.flatImages || [],
           age: form.age || 20,
           gender: form.gender,
           occupation: form.occupation,
@@ -441,6 +511,91 @@ export const OnboardingPage: React.FC = () => {
                       {type}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Flat / Room Photos Section */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Home className="w-4 h-4 text-teal-500" />
+                      <span>Pictures of your Flat / Room (Optional)</span>
+                    </label>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Upload photos of your room, bed, or flat. Potential roommates can view these when inspecting your profile.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 w-fit">
+                    {(form.flatImages || []).length} / 8 Photos
+                  </span>
+                </div>
+
+                <input
+                  type="file"
+                  ref={flatPhotosInputRef}
+                  accept="image/*"
+                  multiple
+                  onChange={handleFlatPhotoUpload}
+                  className="hidden"
+                />
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => flatPhotosInputRef.current?.click()}
+                    className="px-3.5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-sm active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Upload Room / Flat Pictures</span>
+                  </button>
+                  <span className="text-[10px] text-slate-400">Up to 8 photos (JPEG, PNG)</span>
+                </div>
+
+                {/* Thumbnail Grid */}
+                {(form.flatImages || []).length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                    {(form.flatImages || []).map((imgUrl, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-video shadow-sm">
+                        <img src={imgUrl} alt={`Room photo ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFlatPhoto(idx)}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-slate-950/70 hover:bg-rose-500 text-white transition active:scale-90"
+                          title="Remove picture"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-slate-950/70 text-[9px] font-bold text-white">
+                          #{idx + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick Presets */}
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-[10px] text-slate-400 block mb-1.5">Or pick aesthetic room presets:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {FLAT_PHOTO_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          if (!(form.flatImages || []).includes(preset.url)) {
+                            setForm((prev) => ({
+                              ...prev,
+                              flatImages: [...(prev.flatImages || []), preset.url].slice(0, 8)
+                            }));
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-700/70 hover:bg-teal-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 text-[10px] font-semibold transition"
+                      >
+                        + {preset.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

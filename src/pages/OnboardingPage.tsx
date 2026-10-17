@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 import type { 
   UserOnboardingProfile, 
   SleepSchedule, 
@@ -27,6 +28,7 @@ import type {
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const { userProfile, completeOnboarding } = useAppStore();
+  const { user, updateProfile } = useAuthStore();
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
@@ -38,8 +40,43 @@ export const OnboardingPage: React.FC = () => {
       setStep(step + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // Save profile
+      // Save profile locally
       completeOnboarding(form);
+
+      // Sync to Supabase if logged in
+      if (user) {
+        updateProfile({
+          display_name: form.name,
+          age: form.age,
+          gender: form.gender,
+          occupation: form.occupation,
+          institution: form.institution,
+          city: form.city,
+          budget_min: form.budgetMin,
+          budget_max: form.budgetMax,
+          move_in_date: form.moveInDate,
+          accommodation_type: form.accommodationType,
+          sharing_preference: form.sharingPreference,
+          sleep_schedule: form.sleepSchedule,
+          cleanliness: form.cleanliness,
+          food_preference: form.foodPreference,
+          smoking_drinking: form.smokingDrinking,
+          noise_tolerance: form.noiseTolerance,
+          guest_policy: form.guestPolicy,
+          privacy_needs: form.privacyNeeds,
+          bio: form.bio,
+          show_budget_publicly: form.showBudgetPublicly,
+          show_sleep_schedule_publicly: form.showSleepSchedulePublicly,
+          show_contact_publicly: form.showContactPublicly,
+          weights: form.weights,
+          strict_budget: form.strictBudget,
+          strict_move_in_date: form.strictMoveInDate,
+          strict_gender_policy: form.strictGenderPolicy,
+          profile_completed_at: new Date().toISOString(),
+          is_active: true
+        });
+      }
+
       try {
         confetti({ particleCount: 75, spread: 80, origin: { y: 0.6 } });
       } catch {}

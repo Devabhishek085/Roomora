@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff, Users, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { AnimatedRoomoraLogo } from '../components/AnimatedRoomoraLogo';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -93,8 +94,8 @@ export const RegisterPage: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-400 text-white text-3xl shadow-lg shadow-teal-500/20 mb-4">
-            🏡
+          <div className="mb-4 flex justify-center">
+            <AnimatedRoomoraLogo size="lg" />
           </div>
           <h1 className="text-2xl font-extrabold font-heading text-slate-900 dark:text-white">
             Join Roomora

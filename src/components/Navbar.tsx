@@ -19,9 +19,12 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { motion, useReducedMotion } from 'motion/react';
+import { AnimatedRoomoraLogo, NEON_SIGN_DURATION, NEON_KEYFRAME_TIMES } from './AnimatedRoomoraLogo';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
+  const shouldReduceMotion = useReducedMotion();
   const { darkMode, toggleDarkMode, savedProperties, savedRoommates } = useAppStore();
   const { user, tokenBalance, signOut } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,20 +47,57 @@ export const Navbar: React.FC = () => {
     return false;
   };
 
+  const handleBrandClick = () => {
+    if (typeof (window as any).__lenis?.scrollTo === 'function') {
+      (window as any).__lenis.scrollTo(0);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 glass-nav transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Brand Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-400 flex items-center justify-center text-white shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform duration-300">
-              <span className="text-xl">🏡</span>
-            </div>
+          <Link
+            to="/"
+            onClick={handleBrandClick}
+            className="flex items-center gap-2.5 group"
+          >
+            <AnimatedRoomoraLogo size="md" />
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-heading font-extrabold text-2xl tracking-tight text-slate-900 dark:text-white">
+                <motion.span
+                  className="font-heading font-extrabold text-2xl tracking-tight text-slate-900 dark:text-white transition-colors"
+                  animate={
+                    shouldReduceMotion
+                      ? { textShadow: '0 0 10px rgba(45, 212, 191, 0.35)' }
+                      : {
+                          textShadow: [
+                            '0 0 10px rgba(45, 212, 191, 0.30), 0 0 20px rgba(20, 184, 166, 0.18)',
+                            '0 0 15px rgba(45, 212, 191, 0.55), 0 0 28px rgba(20, 184, 166, 0.30)',
+                            '0 0 11px rgba(45, 212, 191, 0.36), 0 0 22px rgba(20, 184, 166, 0.20)',
+                            '0 0 8px rgba(45, 212, 191, 0.22), 0 0 16px rgba(20, 184, 166, 0.12)',
+                            '0 0 14px rgba(45, 212, 191, 0.50), 0 0 26px rgba(20, 184, 166, 0.26)',
+                            '0 0 11px rgba(45, 212, 191, 0.36), 0 0 22px rgba(20, 184, 166, 0.18)',
+                            '0 0 10px rgba(45, 212, 191, 0.30), 0 0 20px rgba(20, 184, 166, 0.18)'
+                          ]
+                        }
+                  }
+                  transition={
+                    shouldReduceMotion
+                      ? { duration: 0 }
+                      : {
+                          duration: NEON_SIGN_DURATION,
+                          times: NEON_KEYFRAME_TIMES,
+                          repeat: Infinity,
+                          ease: 'easeInOut'
+                        }
+                  }
+                >
                   Roomora
-                </span>
+                </motion.span>
                 <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold tracking-wide rounded-md bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
                   BETA
                 </span>

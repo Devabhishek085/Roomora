@@ -72,8 +72,11 @@ export function App() {
 
     const animId = requestAnimationFrame(raf);
 
+    (window as any).__lenis = lenis;
+
     return () => {
       cancelAnimationFrame(animId);
+      delete (window as any).__lenis;
       lenis.destroy();
     };
   }, []);

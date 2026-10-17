@@ -17,6 +17,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { generateDemoListings } from '../services/listings-generator';
 import { DEMO_ROOMMATES, calculateCompatibility } from '../services/compatibility';
+import { AadhaarVerificationCard } from '../components/AadhaarVerificationCard';
 
 export const DashboardPage: React.FC = () => {
   const { 
@@ -372,13 +373,29 @@ export const DashboardPage: React.FC = () => {
 
         {/* TAB 5: PRIVACY & SETTINGS */}
         {activeTab === 'privacy' && (
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Local Privacy & Account Preferences
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              All settings are strictly saved inside your browser storage (localStorage). No external telemetry or cloud tracking.
-            </p>
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-6">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Identity Verification
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Verify your Aadhaar via Surepass (licensed UIDAI partner) to earn the ✓ badge on your profile.
+              </p>
+            </div>
+
+            {/* Aadhaar verification card */}
+            <AadhaarVerificationCard />
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Local Privacy & Account Preferences
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Settings are saved in your browser. No external telemetry or cloud tracking.
+              </p>
+            </div>
 
             <div className="space-y-3 pt-3">
               <label className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 cursor-pointer">

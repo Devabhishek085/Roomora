@@ -254,7 +254,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Web3', 'Competitive Coding', 'Chess', 'Badminton'],
     bio: 'Third-year CS student. Building full-stack projects, loves chai breaks, neat and very respectful of sleep hours.',
     isVerifiedDemo: true,
-    socialBadge: 'Open Source Contributor'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Open Source Contributor"
   },
   {
     id: 'rm-2',
@@ -281,7 +282,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Python', 'Painting', 'Yoga', 'Podcasts'],
     bio: 'Final year IT student interning remotely in AI. Need quiet study environment, keep things spotless, and love peaceful vibes.',
     isVerifiedDemo: true,
-    socialBadge: 'Dean’s Honor List'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Dean’s Honor List"
   },
   {
     id: 'rm-3',
@@ -308,7 +310,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['React', 'Gaming (Valorant)', 'Gym', 'Coffee Brewing'],
     bio: 'Remote frontend dev. Looking for a flatmate who enjoys gaming and deep tech chats. Split Wi-Fi and cook healthy dinners.',
     isVerifiedDemo: true,
-    socialBadge: 'GitHub Open Source Contributor'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "GitHub Open Source Contributor"
   },
   {
     id: 'rm-4',
@@ -335,7 +338,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Robotics', 'Classical Music', 'Reading', 'Gardening'],
     bio: 'ECE junior who loves a peaceful morning. Sleep early, up at 6 AM, extremely disciplined with chores and study desk.',
     isVerifiedDemo: true,
-    socialBadge: 'IEEE Student Lead'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "IEEE Student Lead"
   },
   {
     id: 'rm-5',
@@ -362,7 +366,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Automotive CAD', 'Formula Student', 'Cricket', 'Guitar'],
     bio: 'Spends half my day in the college workshop. Easygoing, fun to hang around with, looking for budget-friendly PG near campus.',
     isVerifiedDemo: true,
-    socialBadge: 'Team Captain (BAJA SAE)'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Team Captain (BAJA SAE)"
   },
   {
     id: 'rm-6',
@@ -389,7 +394,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Typography', 'Specialty Coffee', 'Pilates', 'Art Galleries'],
     bio: 'Product designer obsessed with sleek aesthetics and plants. Looking for a neat flatmate to share a sunlit 2BHK.',
     isVerifiedDemo: true,
-    socialBadge: 'Awwwards Jury Member'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Awwwards Jury Member"
   },
   {
     id: 'rm-7',
@@ -416,7 +422,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Machine Learning', 'Kaggle', 'Anime', 'Table Tennis'],
     bio: 'Sophomore aiming for data analytics hackathons. Need a calm study buddy who respects quiet night hours.',
     isVerifiedDemo: true,
-    socialBadge: 'Kaggle Notebooks Master'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Kaggle Notebooks Master"
   },
   {
     id: 'rm-8',
@@ -443,7 +450,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Stocks', 'Morning Runs', 'South Indian Cooking', 'Carnatic Vocals'],
     bio: 'Disciplined lifestyle, early riser, love home-cooked food. Seeking a respectful professional roommate.',
     isVerifiedDemo: true,
-    socialBadge: 'Chartered Financial Candidate'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Chartered Financial Candidate"
   },
   {
     id: 'rm-9',
@@ -470,7 +478,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['CTF Challenges', 'Linux Customization', 'Cyber Law', 'Sci-Fi'],
     bio: 'CTF player who stays up late debugging network packets. Very hygienic, zero drama, reliable rent payer.',
     isVerifiedDemo: true,
-    socialBadge: 'Bug Bounty Researcher'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Bug Bounty Researcher"
   },
   {
     id: 'rm-10',
@@ -497,7 +506,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Kubernetes', 'Biking', 'Cooking Pasta', 'Guitar'],
     bio: 'Working with AWS/Terraform. Looking for a modern 2BHK flatmate to share chores and chill on weekends.',
     isVerifiedDemo: true,
-    socialBadge: 'AWS Certified Pro'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "AWS Certified Pro"
   },
   {
     id: 'rm-11',
@@ -524,7 +534,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Botanical Sciences', 'Baking', 'Badminton', 'Reading'],
     bio: 'B.Pharm student. Extremely neat, focused on research, looking for a friendly female flatmate near campus.',
     isVerifiedDemo: true,
-    socialBadge: 'Research Merit Scholarship'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Research Merit Scholarship"
   },
   {
     id: 'rm-12',
@@ -551,7 +562,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Node.js', 'Badminton', 'Trekking (Sahyadris)', 'Podcasts'],
     bio: 'Intern in Hinjewadi. Love morning treks on weekends and building side projects during the week.',
     isVerifiedDemo: true,
-    socialBadge: 'Pune Tech Community Volunteer'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Pune Tech Community Volunteer"
   },
   {
     id: 'rm-13',
@@ -578,7 +590,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Copywriting', 'Cinema', 'Filter Coffee', 'Thrifting'],
     bio: 'Creative copywriter in Mumbai. Friendly, clean, love baking banana bread on Sundays.',
     isVerifiedDemo: true,
-    socialBadge: 'Verified Creator'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Verified Creator"
   },
   {
     id: 'rm-14',
@@ -605,7 +618,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Structural Design', 'Volleyball', 'Folk Music', 'Sketching'],
     bio: 'Calm and dependable roommate from UP. Prepares for competitive exams, keeps room organized.',
     isVerifiedDemo: true,
-    socialBadge: 'College Sports Coordinator'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "College Sports Coordinator"
   },
   {
     id: 'rm-15',
@@ -632,7 +646,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['User Psychology', 'Specialty Teas', 'Street Photography', 'Origami'],
     bio: 'DU alumna doing UX research. Great communicator, prompt with shared bill payments.',
     isVerifiedDemo: true,
-    socialBadge: 'Design Club Lead'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Design Club Lead"
   },
   {
     id: 'rm-16',
@@ -659,7 +674,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['ESP32', 'Firmware', 'Football (EPL)', 'Chess'],
     bio: 'Tinkering with hardware sensors. Respects quiet hours, keeps desk neat, friendly attitude.',
     isVerifiedDemo: true,
-    socialBadge: 'Smart India Hackathon Finalist'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Smart India Hackathon Finalist"
   },
   {
     id: 'rm-17',
@@ -686,7 +702,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Linear Algebra', 'Meditation', 'Classical Dance', 'Sudoku'],
     bio: 'Second year student. Very quiet, loves peace and early morning study hours.',
     isVerifiedDemo: true,
-    socialBadge: 'Math Olympiad Gold'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Math Olympiad Gold"
   },
   {
     id: 'rm-18',
@@ -713,7 +730,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Product Growth', 'Cycling', 'Standup Comedy', 'Podcasts'],
     bio: 'Working professional looking for a like-minded flatmate to share a furnished flat in Noida.',
     isVerifiedDemo: true,
-    socialBadge: 'Verified Profile'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Verified Profile"
   },
   {
     id: 'rm-19',
@@ -740,7 +758,8 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Drafting', '3D Modeling (Blender)', 'Plants', 'Coffee'],
     bio: 'Architecture student with drafting boards and plants. Love aesthetic spaces and calm living vibes.',
     isVerifiedDemo: true,
-    socialBadge: 'Archifest Winner'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Archifest Winner"
   },
   {
     id: 'rm-20',
@@ -767,6 +786,7 @@ export const DEMO_ROOMMATES: RoommateProfile[] = [
     hobbies: ['Go / Golang', 'Kafka', 'Table Tennis', 'Gym'],
     bio: 'Junior backend engineer working remotely on microservices. Looking for a quiet, neat room in a friendly flat. Quiet after 11 PM.',
     isVerifiedDemo: true,
-    socialBadge: 'Open Source Contributor'
+    demoLabel: 'AI-generated demo profile',
+    socialBadge: "Open Source Contributor"
   }
 ];

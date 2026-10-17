@@ -12,7 +12,7 @@
  *
  * Provider: Surepass (https://surepass.io)
  *   - Licensed UIDAI authorized partner
- *   - Sandbox available instantly at dashboard.surepass.io
+ *   - Sandbox available instantly at surepass.io
  *   - Production approval: 1-2 business days
  */
 

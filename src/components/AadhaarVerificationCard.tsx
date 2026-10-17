@@ -189,8 +189,8 @@ export const AadhaarVerificationCard: React.FC = () => {
               Add your token to{' '}
               <code className="bg-amber-100 dark:bg-amber-900/60 px-1 rounded font-mono">sidecar/.env</code>
               {' '}— get it at{' '}
-              <a href="https://dashboard.surepass.io" target="_blank" rel="noopener noreferrer"
-                className="underline font-semibold">dashboard.surepass.io</a>
+              <a href="https://surepass.io" target="_blank" rel="noopener noreferrer"
+                className="underline font-semibold">surepass.io</a>
             </span>
           </div>
         </div>
@@ -346,7 +346,7 @@ export const AadhaarVerificationCard: React.FC = () => {
           <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-800 text-xs space-y-2">
             <p className="font-bold text-rose-800 dark:text-rose-200">Surepass Not Configured</p>
             <ol className="list-decimal list-inside space-y-1 text-rose-700 dark:text-rose-300">
-              <li>Go to <a href="https://dashboard.surepass.io" target="_blank" rel="noopener noreferrer" className="underline font-semibold">dashboard.surepass.io</a></li>
+              <li>Go to <a href="https://surepass.io" target="_blank" rel="noopener noreferrer" className="underline font-semibold">surepass.io</a></li>
               <li>Sign up → copy your API token</li>
               <li>Add to <code className="bg-rose-100 dark:bg-rose-900/40 px-1 rounded font-mono">sidecar/.env</code>: <code className="font-mono">SUREPASS_TOKEN=your_token</code></li>
               <li>Restart the sidecar: <code className="font-mono">npm run dev</code></li>

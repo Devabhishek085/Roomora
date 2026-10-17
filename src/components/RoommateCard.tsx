@@ -137,7 +137,9 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
               <h3 className="text-lg font-bold font-heading text-slate-900 dark:text-white truncate flex items-center gap-1.5">
                 {roommate.name}
                 {roommate.isAadhaarVerified && (
-                  <ShieldCheck className="w-4 h-4 text-teal-500 shrink-0" title="Aadhaar Verified" />
+                  <span title="Aadhaar Verified" className="inline-flex items-center">
+                    <ShieldCheck className="w-4 h-4 text-teal-500 shrink-0" />
+                  </span>
                 )}
               </h3>
               <span className="text-xs font-black text-teal-600 dark:text-teal-400 shrink-0">

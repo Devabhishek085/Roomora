@@ -73,16 +73,6 @@ async function requireAuth(req, res, next) {
   }
 }
 
-// ─── Health Check ───────────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    razorpay: RAZORPAY_CONFIGURED ? 'configured' : 'not_configured',
-    uidai: UIDAI_CONFIGURED ? 'configured' : 'not_configured',
-    supabase: !missing.includes('SUPABASE_URL') ? 'configured' : 'not_configured',
-    timestamp: new Date().toISOString()
-  });
-});
 
 // ═══════════════════════════════════════════════════════════════
 // RAZORPAY PAYMENT ENDPOINTS
@@ -396,13 +386,13 @@ app.post('/api/verify/phone/confirm', requireAuth, async (req, res) => {
 /**
  * POST /api/verify/aadhaar/initiate
  * Initiate Aadhaar OTP via Surepass (licensed UIDAI partner).
- * Signup at https://dashboard.surepass.io — sandbox available instantly.
+ * Signup at https://surepass.io — sandbox available instantly.
  */
 app.post('/api/verify/aadhaar/initiate', requireAuth, async (req, res) => {
   if (VERIFICATION_PROVIDER === 'surepass' && !SUREPASS_CONFIGURED) {
     return res.status(503).json({
       error: 'Surepass not configured',
-      setup: 'Signup at dashboard.surepass.io → get API token → set SUREPASS_TOKEN in sidecar/.env'
+      setup: 'Signup at surepass.io → get API token → set SUREPASS_TOKEN in sidecar/.env'
     });
   }
   if (VERIFICATION_PROVIDER === 'uidai' && !UIDAI_CONFIGURED) {
@@ -533,21 +523,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ─── Start Server ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚀 Roomora Sidecar Server running on port ${PORT}`);
-  console.log(`   Razorpay:     ${RAZORPAY_CONFIGURED ? '✅ Configured' : '⚠️  Not configured'}`);
-  console.log(`   Verification: ${VERIFICATION_PROVIDER.toUpperCase()} provider`);
-  if (VERIFICATION_PROVIDER === 'msg91') {
-    console.log(`   MSG91:        ${MSG91_CONFIGURED ? '✅ Configured (Phone OTP ready)' : '⚠️  Not configured — signup at msg91.com'}`);
-  } else if (VERIFICATION_PROVIDER === 'surepass') {
-    console.log(`   Surepass:     ${SUREPASS_CONFIGURED ? '✅ Configured (Aadhaar via licensed partner)' : '⚠️  Not configured — signup at dashboard.surepass.io'}`);
-  } else {
-    console.log(`   UIDAI:        ${UIDAI_CONFIGURED ? '✅ Configured' : '⚠️  Requires formal onboarding at developer.uidai.gov.in'}`);
-  }
-  console.log(`   Supabase:     ${!missing.includes('SUPABASE_URL') ? '✅ Configured' : '⚠️  Not configured'}`);
-  console.log(`\n   Health check: http://localhost:${PORT}/health\n`);
-});
 
 
 /**
@@ -639,11 +614,18 @@ app.post('/api/aadhaar/verify', requireAuth, async (req, res) => {
   });
 });
 
-// ─── Start Server ───────────────────────────────────────────────────────────
+// ─── Start Server ─────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 Roomora Sidecar Server running on port ${PORT}`);
-  console.log(`   Razorpay: ${RAZORPAY_CONFIGURED ? '✅ Configured' : '⚠️  Not configured (set RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET)'}`);
-  console.log(`   UIDAI:    ${UIDAI_CONFIGURED ? '✅ Configured' : '⚠️  Not configured (requires UIDAI developer onboarding)'}`);
-  console.log(`   Supabase: ${!missing.includes('SUPABASE_URL') ? '✅ Configured' : '⚠️  Not configured'}`);
+  console.log(`   Razorpay:     ${RAZORPAY_CONFIGURED ? '✅ Configured' : '⚠️  Not configured'}`);
+  console.log(`   Verification: ${VERIFICATION_PROVIDER.toUpperCase()} provider`);
+  if (VERIFICATION_PROVIDER === 'msg91') {
+    console.log(`   MSG91:        ${MSG91_CONFIGURED ? '✅ Configured (Phone OTP ready)' : '⚠️  Not configured — signup at msg91.com'}`);
+  } else if (VERIFICATION_PROVIDER === 'surepass') {
+    console.log(`   Surepass:     ${SUREPASS_CONFIGURED ? '✅ Configured (Aadhaar via licensed partner)' : '⚠️  Not configured — signup at surepass.io'}`);
+  } else {
+    console.log(`   UIDAI:        ${UIDAI_CONFIGURED ? '✅ Configured' : '⚠️  Requires formal onboarding at developer.uidai.gov.in'}`);
+  }
+  console.log(`   Supabase:     ${!missing.includes('SUPABASE_URL') ? '✅ Configured' : '⚠️  Not configured'}`);
   console.log(`\n   Health check: http://localhost:${PORT}/health\n`);
 });

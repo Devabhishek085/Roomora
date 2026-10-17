@@ -74,6 +74,7 @@ export interface MatchingWeights {
 export interface UserOnboardingProfile {
   name: string;
   avatarUrl?: string;
+  flatImages?: string[];
   age: number;
   gender: 'Male' | 'Female' | 'Non-binary' | 'Prefer not to say';
   occupation: 'College Student' | 'Working Professional' | 'Intern' | 'Freelancer';
@@ -126,6 +127,7 @@ export interface DbProfile {
   bio: string | null;
   target_localities: string[];
   hobbies: string[];
+  flat_images?: string[] | null;
   is_demo: boolean;
   demo_label: string | null;
   profile_visibility: 'public' | 'connections_only' | 'private';
@@ -149,6 +151,7 @@ export interface RoommateProfile {
   age: number;
   gender: 'Male' | 'Female' | 'Non-binary';
   avatarUrl: string;
+  flatImages?: string[];
   occupation: string;
   institution: string;
   city: string;

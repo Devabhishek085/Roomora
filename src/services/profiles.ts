@@ -32,6 +32,7 @@ export function dbProfileToRoommateProfile(profile: DbProfile): RoommateProfile 
     privacyNeeds: (profile.privacy_needs as RoommateProfile['privacyNeeds']) || 'Moderate',
     hobbies: profile.hobbies || [],
     bio: profile.bio || '',
+    flatImages: profile.flat_images || [],
     isVerifiedDemo: profile.is_demo,
     demoLabel: profile.demo_label,
   };

@@ -19,6 +19,7 @@ export const DEFAULT_LOCATION: LocationCoordinates = {
 export const createEmptyUserProfile = (name = ''): UserOnboardingProfile => ({
   name,
   avatarUrl: '',
+  flatImages: [],
   age: 20,
   gender: 'Male',
   occupation: 'College Student',

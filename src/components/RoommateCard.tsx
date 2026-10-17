@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Heart, Sparkles, MapPin, CheckCircle2, UserCheck, MessageSquare, Info, Bot, ShieldCheck } from 'lucide-react';
+import { Heart, Sparkles, MapPin, CheckCircle2, UserCheck, MessageSquare, Info, Bot, ShieldCheck, Home } from 'lucide-react';
 import type { RoommateProfile, CompatibilityReport } from '../types';
 import { useAppStore } from '../store/useAppStore';
 
@@ -110,6 +110,22 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
               <Heart className={`w-4 h-4 ${isSaved ? 'text-rose-500 fill-rose-500' : 'text-slate-400'}`} />
             </button>
 
+            {/* Flat Pictures Indicator Badge */}
+            {roommate.flatImages && roommate.flatImages.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWhyMatch(roommate, report);
+                }}
+                className="absolute top-3 right-12 flex items-center gap-1 px-2.5 py-1 rounded-full backdrop-blur-md bg-teal-950/85 border border-teal-500/40 text-teal-300 hover:text-white hover:bg-teal-900 text-[10px] font-bold shadow-md transition-all active:scale-95 z-10"
+                title="View flat and room photos"
+              >
+                <Home className="w-3 h-3 text-teal-400" />
+                <span>{roommate.flatImages.length} Photos</span>
+              </button>
+            )}
+
             {/* Demo label badge — clearly visible */}
             {roommate.demoLabel && (
               <div className="absolute bottom-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/90 text-slate-950 text-[10px] font-bold shadow-sm">
@@ -173,6 +189,21 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
                 🥗 {roommate.foodPreference}
               </span>
             </div>
+
+            {/* Flat photos direct link */}
+            {roommate.flatImages && roommate.flatImages.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onWhyMatch(roommate, report)}
+                className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/60 text-teal-700 dark:text-teal-300 text-[11px] font-bold hover:bg-teal-100 dark:hover:bg-teal-900/40 transition mt-2.5"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Home className="w-3.5 h-3.5 text-teal-500" />
+                  <span>{roommate.flatImages.length} Flat &amp; Room Pictures</span>
+                </span>
+                <span className="text-[10px] font-semibold underline">View &rarr;</span>
+              </button>
+            )}
           </div>
 
           {/* Action Row */}

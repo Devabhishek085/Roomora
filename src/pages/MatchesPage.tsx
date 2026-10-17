@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Users,
   Sparkles,
@@ -8,7 +8,8 @@ import {
   Search,
   Bot,
   Coins,
-  Info
+  Info,
+  MapPin
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -20,15 +21,36 @@ import { ConnectModal } from '../components/ConnectModal';
 import { isSupabaseConfigured } from '../lib/supabase';
 import type { RoommateProfile, CompatibilityReport } from '../types';
 
+const MATCH_CITY_PILLS = [
+  { id: '', label: 'All Cities' },
+  { id: 'Delhi', label: 'Delhi NCR' },
+  { id: 'Bengaluru', label: 'Bengaluru' },
+  { id: 'Mumbai', label: 'Mumbai' },
+  { id: 'Pune', label: 'Pune' },
+  { id: 'Hyderabad', label: 'Hyderabad' }
+];
+
 export const MatchesPage: React.FC = () => {
   const { userProfile } = useAppStore();
   const { user, tokenBalance } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [minScore, setMinScore] = useState<number>(50);
   const [selectedGender, setSelectedGender] = useState<string>('All');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState<'score' | 'budget' | 'age'>('score');
-  const [cityFilter, setCityFilter] = useState<string>('');
+  const [cityFilter, setCityFilter] = useState<string>(searchParams.get('city') || '');
+
+  useEffect(() => {
+    const urlCity = searchParams.get('city');
+    if (urlCity !== null && urlCity !== cityFilter) {
+      setCityFilter(urlCity);
+    }
+    const urlSearch = searchParams.get('search');
+    if (urlSearch !== null && urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch);
+    }
+  }, [searchParams]);
 
   // DB profiles state
   const [dbProfiles, setDbProfiles] = useState<RoommateProfile[]>([]);
@@ -149,6 +171,36 @@ export const MatchesPage: React.FC = () => {
               ⚠️ Database not connected
             </span>
           )}
+        </div>
+
+        {/* Location Selector Bar */}
+        <div className="flex flex-wrap items-center gap-2 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm text-xs">
+          <span className="font-semibold text-slate-400 mr-1 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-teal-500" /> Location:
+          </span>
+          {MATCH_CITY_PILLS.map((c) => {
+            const isActive = (cityFilter.toLowerCase() === c.id.toLowerCase());
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setCityFilter(c.id);
+                  const next = new URLSearchParams(searchParams);
+                  if (c.id) next.set('city', c.id);
+                  else next.delete('city');
+                  setSearchParams(next);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                  isActive
+                    ? 'bg-slate-900 dark:bg-teal-400 text-white dark:text-slate-950 shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {c.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Filter Controls Bar */}

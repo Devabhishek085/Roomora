@@ -18,8 +18,9 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { generateDemoListings } from '../services/listings-generator';
-import { DEMO_ROOMMATES, calculateCompatibility } from '../services/compatibility';
+import { fetchProfileById, dbProfileToRoommateProfile } from '../services/profiles';
 import { AadhaarVerificationCard } from '../components/AadhaarVerificationCard';
+import type { RoommateProfile } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { user, dbProfile, updateProfile } = useAuthStore();
@@ -65,9 +66,27 @@ export const DashboardPage: React.FC = () => {
     return all.filter((p) => savedProperties.includes(p.id));
   }, [selectedLocation.lat, selectedLocation.lng, savedProperties]);
 
-  // Saved roommates items
-  const savedRoommatesList = useMemo(() => {
-    return DEMO_ROOMMATES.filter((r) => savedRoommates.includes(r.id));
+  // Saved real roommates items
+  const [savedRoommatesList, setSavedRoommatesList] = useState<RoommateProfile[]>([]);
+
+  useEffect(() => {
+    if (savedRoommates.length === 0) {
+      setSavedRoommatesList([]);
+      return;
+    }
+    let isCurrent = true;
+    const loadSaved = async () => {
+      const loaded: RoommateProfile[] = [];
+      for (const id of savedRoommates) {
+        const p = await fetchProfileById(id);
+        if (p) loaded.push(dbProfileToRoommateProfile(p));
+      }
+      if (isCurrent) setSavedRoommatesList(loaded);
+    };
+    loadSaved();
+    return () => {
+      isCurrent = false;
+    };
   }, [savedRoommates]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {

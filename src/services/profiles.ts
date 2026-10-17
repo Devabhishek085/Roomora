@@ -52,21 +52,20 @@ export interface RoommateFilter {
 }
 
 /**
- * Fetches roommate profiles from the database with optional filters.
- * Returns both real and AI-demo profiles.
- * Demo profiles are clearly labeled.
+ * Fetches real roommate profiles from the database with optional filters.
+ * Only returns actual registered users who completed their onboarding profile.
+ * AI demo profiles and uncompleted/test accounts are strictly excluded.
  */
 export async function fetchRoommateProfiles(
   currentUserId: string | null,
   filter: RoommateFilter = {}
 ): Promise<{ profiles: RoommateProfile[]; total: number; error: string | null }> {
   if (!isSupabaseConfigured) {
-    // Return empty — UI will fall back to in-memory DEMO_ROOMMATES
     return { profiles: [], total: 0, error: null };
   }
 
   const page = filter.page ?? 1;
-  const pageSize = filter.pageSize ?? 20;
+  const pageSize = filter.pageSize ?? 50;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -75,6 +74,11 @@ export async function fetchRoommateProfiles(
     .select('*', { count: 'exact' })
     .eq('is_active', true)
     .eq('profile_visibility', 'public')
+    .eq('is_demo', false)
+    .not('profile_completed_at', 'is', null)
+    .not('city', 'is', null)
+    .not('age', 'is', null)
+    .gt('age', 0)
     .range(from, to);
 
   // Exclude current user from results
@@ -115,8 +119,8 @@ export async function fetchRoommateProfiles(
     query = query.or(`display_name.ilike.%${q}%,institution.ilike.%${q}%,city.ilike.%${q}%`);
   }
 
-  // Order: real profiles first, then demo
-  query = query.order('is_demo', { ascending: true }).order('created_at', { ascending: false });
+  // Order: newest registered profiles first
+  query = query.order('created_at', { ascending: false });
 
   const { data, count, error } = await query;
 
@@ -124,8 +128,21 @@ export async function fetchRoommateProfiles(
     return { profiles: [], total: 0, error: error.message };
   }
 
-  const profiles = (data as DbProfile[]).map(dbProfileToRoommateProfile);
-  return { profiles, total: count ?? 0, error: null };
+  // Strict sanitization: only keep registered profiles with genuine profile details
+  const validProfiles = (data as DbProfile[]).filter((p) => {
+    return (
+      !p.is_demo &&
+      Boolean(p.profile_completed_at) &&
+      p.age !== null &&
+      p.age !== undefined &&
+      p.age > 0 &&
+      Boolean(p.city && p.city.trim() !== '') &&
+      !p.display_name?.startsWith('test_')
+    );
+  });
+
+  const profiles = validProfiles.map(dbProfileToRoommateProfile);
+  return { profiles, total: count ?? profiles.length, error: null };
 }
 
 /**

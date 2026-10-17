@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { DEMO_ROOMMATES, calculateCompatibility } from '../services/compatibility';
+import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
 import { RoommateCard } from '../components/RoommateCard';
 import { WhyMatchModal } from '../components/WhyMatchModal';
@@ -29,7 +29,6 @@ export const MatchesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'score' | 'budget' | 'age'>('score');
   const [cityFilter, setCityFilter] = useState<string>('');
-  const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
 
   // DB profiles state
   const [dbProfiles, setDbProfiles] = useState<RoommateProfile[]>([]);
@@ -63,23 +62,10 @@ export const MatchesPage: React.FC = () => {
     load();
   }, [user?.id, cityFilter, selectedGender, searchQuery]);
 
-  // Merge DB profiles (real) + DEMO_ROOMMATES (demo fallback/supplement)
-  // Real profiles from DB come first; DEMO_ROOMMATES are appended as labeled demos
+  // Only real registered profiles created with email IDs
   const allProfiles = useMemo((): RoommateProfile[] => {
-    if (isSupabaseConfigured && !dbLoading) {
-      // DB real profiles + labeled demo profiles from in-memory seed
-      const demoProfiles = DEMO_ROOMMATES.map(rm => ({
-        ...rm,
-        demoLabel: rm.demoLabel ?? 'AI-generated demo profile'
-      }));
-      return [...dbProfiles, ...demoProfiles];
-    }
-    // No Supabase: show only labeled demo profiles
-    return DEMO_ROOMMATES.map(rm => ({
-      ...rm,
-      demoLabel: rm.demoLabel ?? 'AI-generated demo profile'
-    }));
-  }, [dbProfiles, dbLoading]);
+    return dbProfiles;
+  }, [dbProfiles]);
 
   // Compute compatibility for all profiles
   const evaluatedProfiles = useMemo(() => {
@@ -94,7 +80,6 @@ export const MatchesPage: React.FC = () => {
     let result = evaluatedProfiles.filter(({ roommate, report }) => {
       if (report.score < minScore) return false;
       if (selectedGender !== 'All' && roommate.gender !== selectedGender) return false;
-      if (showVerifiedOnly && roommate.demoLabel) return false; // exclude demo profiles
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = roommate.name.toLowerCase().includes(q);
@@ -107,12 +92,7 @@ export const MatchesPage: React.FC = () => {
     });
 
     if (sortBy === 'score') {
-      result.sort((a, b) => {
-        // Real profiles before demos at same score
-        if (a.roommate.demoLabel && !b.roommate.demoLabel) return 1;
-        if (!a.roommate.demoLabel && b.roommate.demoLabel) return -1;
-        return b.report.score - a.report.score;
-      });
+      result.sort((a, b) => b.report.score - a.report.score);
     } else if (sortBy === 'budget') {
       result.sort((a, b) => a.roommate.budgetMin - b.roommate.budgetMin);
     } else if (sortBy === 'age') {
@@ -120,10 +100,7 @@ export const MatchesPage: React.FC = () => {
     }
 
     return result;
-  }, [evaluatedProfiles, minScore, selectedGender, searchQuery, sortBy, showVerifiedOnly]);
-
-  const realCount = filteredProfiles.filter(p => !p.roommate.demoLabel).length;
-  const demoCount = filteredProfiles.filter(p => p.roommate.demoLabel).length;
+  }, [evaluatedProfiles, minScore, selectedGender, searchQuery, sortBy]);
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -139,7 +116,7 @@ export const MatchesPage: React.FC = () => {
               Find Your Roommate
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-              Matching based on your lifestyle profile. Real profiles come first — demo profiles are clearly labeled.
+              Matching based on your lifestyle profile. Showing genuine registered roommates.
             </p>
           </div>
 
@@ -163,21 +140,13 @@ export const MatchesPage: React.FC = () => {
 
         {/* Profile count summary */}
         <div className="flex flex-wrap items-center gap-4 text-xs">
-          {realCount > 0 && (
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              {realCount} real profile{realCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          {demoCount > 0 && (
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-semibold">
-              <Bot className="w-3.5 h-3.5" />
-              {demoCount} AI-generated demo profile{demoCount !== 1 ? 's' : ''}
-            </span>
-          )}
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            {filteredProfiles.length} registered roommate profile{filteredProfiles.length !== 1 ? 's' : ''}
+          </span>
           {!isSupabaseConfigured && (
             <span className="text-slate-400 dark:text-slate-500">
-              ⚠️ Backend not configured — showing demo profiles only
+              ⚠️ Database not connected
             </span>
           )}
         </div>
@@ -237,13 +206,6 @@ export const MatchesPage: React.FC = () => {
                 <option value="age">Age</option>
               </select>
             </div>
-
-            {/* Verified only toggle */}
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input type="checkbox" checked={showVerifiedOnly} onChange={e => setShowVerifiedOnly(e.target.checked)}
-                className="accent-teal-500 w-4 h-4 rounded" />
-              <span className="text-slate-600 dark:text-slate-400 font-semibold">Real profiles only</span>
-            </label>
           </div>
         </div>
 
@@ -259,7 +221,7 @@ export const MatchesPage: React.FC = () => {
         {dbError && (
           <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm flex items-center gap-2">
             <Info className="w-4 h-4 shrink-0" />
-            <span>Could not load profiles from server: {dbError}. Showing demo profiles.</span>
+            <span>Could not load profiles from server: {dbError}</span>
           </div>
         )}
 
@@ -291,9 +253,8 @@ export const MatchesPage: React.FC = () => {
           <div>
             <strong className="font-bold block">Explainable Compatibility Commitment:</strong>
             <span>
-              Scores use a transparent weighted formula: Σ(CategoryScore × UserWeight) / Σ(Weights). No black-box AI.
-              Demo profiles are clearly labeled <Bot className="w-3 h-3 inline mx-0.5" /> and cannot receive real connections.
-              Real profiles are added by consent-giving users only.
+              Scores use a transparent weighted formula: Σ(CategoryScore × UserWeight) / Σ(Weights).
+              Only registered user profiles are displayed — synthetic AI profiles and unverified accounts without details are excluded.
             </span>
           </div>
         </div>

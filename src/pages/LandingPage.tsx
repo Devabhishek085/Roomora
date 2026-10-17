@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -21,7 +21,9 @@ import { LocationSearchBar } from '../components/LocationSearchBar';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { generateDemoListings } from '../services/listings-generator';
-import { DEMO_ROOMMATES, calculateCompatibility } from '../services/compatibility';
+import { calculateCompatibility } from '../services/compatibility';
+import { fetchRoommateProfiles } from '../services/profiles';
+import type { RoommateProfile } from '../types';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,16 +31,29 @@ export const LandingPage: React.FC = () => {
   const { user, tokenBalance } = useAuthStore();
   const [isSearching, setIsSearching] = useState(false);
   const [budgetFilter, setBudgetFilter] = useState<number>(12000);
+  const [realProfiles, setRealProfiles] = useState<RoommateProfile[]>([]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    fetchRoommateProfiles(user?.id ?? null, { pageSize: 10 }).then(({ profiles }) => {
+      if (isCurrent && profiles.length > 0) {
+        setRealProfiles(profiles);
+      }
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [user?.id]);
 
   // Top roommate match preview (roommate-first hero section)
   const topMatches = useMemo(() => {
-    return DEMO_ROOMMATES.map((rm) => ({
+    return realProfiles.map((rm) => ({
       roommate: rm,
       compat: calculateCompatibility(userProfile, rm)
     }))
       .sort((a, b) => b.compat.score - a.compat.score)
       .slice(0, 3);
-  }, [userProfile]);
+  }, [realProfiles, userProfile]);
 
   // Generate listings around currently selected location (secondary section)
   const featuredListings = useMemo(() => {
@@ -52,9 +67,9 @@ export const LandingPage: React.FC = () => {
     return {
       totalPlaces: all.length * 4,
       avgRent,
-      demoProfiles: DEMO_ROOMMATES.length,
+      registeredProfiles: realProfiles.length,
     };
-  }, [selectedLocation.lat, selectedLocation.lng]);
+  }, [selectedLocation.lat, selectedLocation.lng, realProfiles.length]);
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 transition-colors">
@@ -194,33 +209,34 @@ export const LandingPage: React.FC = () => {
             {/* Top Match Preview Cards */}
             <div className="lg:col-span-5 space-y-3">
               <div className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-1">
-                Demo Matches Preview
+                Top Roommate Matches
               </div>
-              {topMatches.map(({ roommate, compat }) => (
-                <div key={roommate.id}
-                  className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-3 hover:bg-white/15 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <img src={roommate.avatarUrl} alt={roommate.name}
-                      className="w-12 h-12 rounded-xl object-cover border border-teal-400/40" />
-                    <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        {roommate.name}
-                        <span className="text-[10px] text-teal-300 bg-teal-950/60 px-1.5 py-0.5 rounded">{roommate.age}y</span>
-                      </h4>
-                      <p className="text-xs text-indigo-200 line-clamp-1">{roommate.occupation} • {roommate.sleepSchedule}</p>
-                      {roommate.demoLabel && (
-                        <span className="inline-flex items-center gap-1 text-[9px] text-amber-300/80 mt-0.5">
-                          <Bot className="w-2.5 h-2.5" />{roommate.demoLabel}
-                        </span>
-                      )}
+              {topMatches.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-indigo-200">
+                  Join Roomora and complete your quiz to see your top compatibility matches!
+                </div>
+              ) : (
+                topMatches.map(({ roommate, compat }) => (
+                  <div key={roommate.id}
+                    className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-3 hover:bg-white/15 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <img src={roommate.avatarUrl} alt={roommate.name}
+                        className="w-12 h-12 rounded-xl object-cover border border-teal-400/40" />
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                          {roommate.name}
+                          <span className="text-[10px] text-teal-300 bg-teal-950/60 px-1.5 py-0.5 rounded">{roommate.age}y</span>
+                        </h4>
+                        <p className="text-xs text-indigo-200 line-clamp-1">{roommate.occupation} • {roommate.sleepSchedule}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-black text-teal-300 font-heading">{compat.score}%</div>
+                      <span className="text-[10px] text-indigo-200">Match</span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-lg font-black text-teal-300 font-heading">{compat.score}%</div>
-                    <span className="text-[10px] text-indigo-200">Match</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -250,8 +266,8 @@ export const LandingPage: React.FC = () => {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Free Connection Tokens</p>
           </div>
           <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-sm">
-            <p className="text-3xl font-black text-slate-900 dark:text-white font-heading">{stats.demoProfiles}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Demo Profiles (labeled)</p>
+            <p className="text-3xl font-black text-slate-900 dark:text-white font-heading">{stats.registeredProfiles}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Registered Roommates</p>
           </div>
           <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-sm">
             <p className="text-3xl font-black text-slate-900 dark:text-white font-heading">₹{stats.avgRent.toLocaleString()}</p>

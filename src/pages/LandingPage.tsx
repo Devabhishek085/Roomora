@@ -15,7 +15,9 @@ import {
   ChevronRight,
   Coins,
   Bot,
-  Search
+  Search,
+  SlidersHorizontal,
+  ArrowUpDown
 } from 'lucide-react';
 import { HeroScene } from '../components/3d/HeroScene';
 import { LocationSearchBar } from '../components/LocationSearchBar';
@@ -26,24 +28,25 @@ import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
 import type { RoommateProfile } from '../types';
 
-const CITY_PILLS = [
-  { id: 'Delhi', label: 'Delhi NCR' },
-  { id: 'Bengaluru', label: 'Bengaluru' },
-  { id: 'Mumbai', label: 'Mumbai' },
-  { id: 'Pune', label: 'Pune' },
-  { id: 'Hyderabad', label: 'Hyderabad' },
-  { id: 'all', label: 'All Locations' },
-];
-
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedLocation, userProfile, savedProperties, toggleSaveProperty } = useAppStore();
+  const { selectedLocation, userProfile, savedProperties, toggleSaveProperty, radiusKm, setRadiusKm } = useAppStore();
   const { user, tokenBalance } = useAuthStore();
   const [isSearching, setIsSearching] = useState(false);
   const [budgetFilter, setBudgetFilter] = useState<number>(12000);
   const [realProfiles, setRealProfiles] = useState<RoommateProfile[]>([]);
-  const [activeCityFilter, setActiveCityFilter] = useState<string>('Delhi');
-  const [localitySearch, setLocalitySearch] = useState<string>('');
+
+  // Location filter controls matching screenshot
+  const [filterRadius, setFilterRadius] = useState<number>(radiusKm || 5);
+  const [filterMaxBudget, setFilterMaxBudget] = useState<number>(20000);
+  const [filterSortBy, setFilterSortBy] = useState<'distance' | 'score' | 'budget_asc' | 'budget_desc' | 'age'>('distance');
+
+  const handleResetLocationFilters = () => {
+    setFilterRadius(5);
+    setRadiusKm(5);
+    setFilterMaxBudget(20000);
+    setFilterSortBy('distance');
+  };
 
   useEffect(() => {
     let isCurrent = true;
@@ -69,22 +72,24 @@ export const LandingPage: React.FC = () => {
 
   // Location-based roommate discovery
   const locationRoommates = useMemo(() => {
+    const locName = (selectedLocation.name || selectedLocation.city || '').toLowerCase();
+    const locCity = (selectedLocation.city || '').toLowerCase();
+
     return realProfiles
       .filter((rm) => {
-        if (activeCityFilter !== 'all') {
-          const matchesCity = rm.city.toLowerCase().includes(activeCityFilter.toLowerCase());
+        // Budget filter
+        if (rm.budgetMin > filterMaxBudget) return false;
+
+        // Location match
+        if (locCity || locName) {
+          const rmCity = (rm.city || '').toLowerCase();
+          const matchesCity = rmCity && (locCity.includes(rmCity) || locName.includes(rmCity) || rmCity.includes(locCity));
           const matchesLocality = rm.targetLocalities?.some((loc) =>
-            loc.toLowerCase().includes(activeCityFilter.toLowerCase())
+            locName.includes(loc.toLowerCase()) || loc.toLowerCase().includes(locName)
           );
-          if (!matchesCity && !matchesLocality) return false;
-        }
-        if (localitySearch.trim()) {
-          const q = localitySearch.toLowerCase();
-          const matchName = rm.name.toLowerCase().includes(q);
-          const matchInst = rm.institution.toLowerCase().includes(q);
-          const matchLoc = rm.targetLocalities?.some((l) => l.toLowerCase().includes(q));
-          const matchCity = rm.city.toLowerCase().includes(q);
-          if (!matchName && !matchInst && !matchLoc && !matchCity) return false;
+          if (!matchesCity && !matchesLocality && locCity !== '') {
+            return false;
+          }
         }
         return true;
       })
@@ -92,8 +97,14 @@ export const LandingPage: React.FC = () => {
         roommate: rm,
         compat: calculateCompatibility(userProfile, rm)
       }))
-      .sort((a, b) => b.compat.score - a.compat.score);
-  }, [realProfiles, activeCityFilter, localitySearch, userProfile]);
+      .sort((a, b) => {
+        if (filterSortBy === 'score') return b.compat.score - a.compat.score;
+        if (filterSortBy === 'budget_asc') return a.roommate.budgetMin - b.roommate.budgetMin;
+        if (filterSortBy === 'budget_desc') return b.roommate.budgetMax - a.roommate.budgetMax;
+        if (filterSortBy === 'age') return a.roommate.age - b.roommate.age;
+        return b.compat.score - a.compat.score;
+      });
+  }, [realProfiles, selectedLocation, filterMaxBudget, filterSortBy, userProfile]);
 
   // Generate listings around currently selected location (secondary section)
   const featuredListings = useMemo(() => {
@@ -426,60 +437,123 @@ export const LandingPage: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 text-xs font-bold mb-2">
               <MapPin className="w-3.5 h-3.5" />
-              <span>Roommates by Location</span>
+              <span>Location-Based Discovery</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-slate-900 dark:text-white">
               Find Roommates Looking in Your Area
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-              Connect with registered students and flat-seekers looking for rooms in specific colleges and localities.
+              Search any college, metro station, or locality to see verified roommates and shared flats in that specific area.
             </p>
           </div>
 
           <Link
-            to={`/matches${activeCityFilter !== 'all' ? `?city=${encodeURIComponent(activeCityFilter)}` : ''}`}
+            to={`/matches?city=${encodeURIComponent(selectedLocation.city || selectedLocation.name || 'Delhi')}`}
             className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
           >
-            <span>Explore all {activeCityFilter !== 'all' ? `in ${activeCityFilter}` : 'roommates'}</span>
+            <span>Explore all in Matches</span>
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
 
-        {/* Location selector pills & search */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
-          {/* City pills */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-400 mr-1 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-teal-500" /> City:
-            </span>
-            {CITY_PILLS.map((c) => {
-              const isActive = activeCityFilter.toLowerCase() === c.id.toLowerCase();
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveCityFilter(c.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-slate-900 dark:bg-teal-400 text-white dark:text-slate-950 shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              );
-            })}
+        {/* Location Search Bar & Filter Controls (Matching User Screenshot) */}
+        <div className="max-w-4xl mx-auto space-y-4 mb-8">
+          {/* Top Bar: LocationSearchBar with Clear & Near Me GPS */}
+          <div className="w-full">
+            <LocationSearchBar compact />
           </div>
 
-          {/* Quick locality search */}
-          <div className="relative min-w-[220px] max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={localitySearch}
-              onChange={(e) => setLocalitySearch(e.target.value)}
-              placeholder="Search locality, college, name..."
-              className="w-full text-xs pl-9 pr-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border-none text-slate-900 dark:text-white outline-none"
-            />
+          {/* Filter Box with Search Radius, Max Budget, Found count, Reset, and Sort */}
+          <div className="bg-white dark:bg-[#0B101B] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4">
+            {/* Top Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span className="font-bold text-sm text-slate-900 dark:text-white">
+                  Filter Verified Places &amp; Roommates
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/80 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-black">
+                  {locationRoommates.length} Found
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleResetLocationFilters}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                >
+                  Reset Filters
+                </button>
+
+                {/* Sort Dropdown */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  <select
+                    value={filterSortBy}
+                    onChange={(e) => setFilterSortBy(e.target.value as any)}
+                    className="bg-slate-100 dark:bg-slate-800/90 border-none rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200 font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="distance">Distance: Nearest First</option>
+                    <option value="score">Compatibility: Top Match</option>
+                    <option value="budget_asc">Rent: Low to High</option>
+                    <option value="budget_desc">Rent: High to Low</option>
+                    <option value="age">Age: Youngest First</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Sliders Grid: Radius & Max Rent */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Radius Slider Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
+                <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  <span>Search Radius</span>
+                  <span className="text-teal-600 dark:text-teal-400 font-black">{filterRadius} km</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="12"
+                  step="1"
+                  value={filterRadius}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setFilterRadius(val);
+                    setRadiusKm(val);
+                  }}
+                  className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
+                  <span>1 km (walking)</span>
+                  <span>6 km</span>
+                  <span>12 km (transit)</span>
+                </div>
+              </div>
+
+              {/* Max Budget Slider Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
+                <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  <span>Max Budget</span>
+                  <span className="text-teal-600 dark:text-teal-400 font-black">₹{filterMaxBudget.toLocaleString()}/mo</span>
+                </div>
+                <input
+                  type="range"
+                  min="5000"
+                  max="26000"
+                  step="500"
+                  value={filterMaxBudget}
+                  onChange={(e) => setFilterMaxBudget(Number(e.target.value))}
+                  className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
+                  <span>₹5,000</span>
+                  <span>₹15,000</span>
+                  <span>₹26,000</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -490,23 +564,23 @@ export const LandingPage: React.FC = () => {
               <MapPin className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              No roommates registered in {activeCityFilter === 'all' ? 'this search' : activeCityFilter} yet
+              No roommates match current location or budget filters
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Be the first to list yourself as a roommate here, or check out our active roommates in Delhi NCR.
+              Try increasing your Max Budget or resetting filters to view all roommates near {selectedLocation.name || 'your area'}.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <button
-                onClick={() => { setActiveCityFilter('Delhi'); setLocalitySearch(''); }}
+                onClick={handleResetLocationFilters}
                 className="px-4 py-2 rounded-xl bg-teal-500 text-slate-950 font-bold text-xs hover:bg-teal-400 transition-colors"
               >
-                View Delhi NCR Roommates
+                Reset Filters
               </button>
               <Link
                 to="/onboarding"
                 className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
-                Complete Quiz & Register
+                Complete Quiz &amp; Register
               </Link>
             </div>
           </div>

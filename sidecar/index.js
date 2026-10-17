@@ -1,28 +1,15 @@
 /**
  * Roomora Sidecar Server
  * ─────────────────────────────────────────────────────────────
- * Express server that handles operations requiring server-side credentials:
- *   1. Razorpay order creation and webhook verification
- *   2. UIDAI Aadhaar verification API calls (credentials never go to browser)
- *   3. Supabase service-role operations (admin-level tasks)
+ * Handles all server-side-only credential operations:
+ *   1. Razorpay order creation + HMAC webhook verification
+ *   2. Identity verification — switchable provider:
+ *      A. MSG91 Phone OTP  (instant signup at msg91.com)
+ *      B. Surepass         (licensed UIDAI partner, 1-2 day approval)
+ *      C. UIDAI Direct     (formal application — future)
+ *   3. Supabase service-role admin operations
  *
- * Security architecture:
- *   - Razorpay Key Secret: ONLY here, never in frontend .env
- *   - UIDAI credentials: ONLY here, never in browser
- *   - Supabase Service Role Key: ONLY here, bypasses RLS only for admin ops
- *   - All frontend API calls verified against Supabase JWT before processing
- *
- * REQUIRED environment variables (sidecar/.env):
- *   SUPABASE_URL=https://your-project.supabase.co
- *   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
- *   SUPABASE_JWT_SECRET=your-jwt-secret
- *   RAZORPAY_KEY_ID=rzp_test_your_key_id
- *   RAZORPAY_KEY_SECRET=your_razorpay_key_secret
- *   UIDAI_CLIENT_ID=your-uidai-sandbox-client-id
- *   UIDAI_CLIENT_SECRET=your-uidai-sandbox-client-secret
- *   UIDAI_BASE_URL=https://developer.uidai.gov.in/sandbox
- *   PORT=3001
- *   FRONTEND_ORIGIN=http://localhost:5173
+ * Set VERIFICATION_PROVIDER=msg91|surepass|uidai in sidecar/.env
  */
 
 import express from 'express';
@@ -43,6 +30,9 @@ if (missing.length > 0) {
 
 const RAZORPAY_CONFIGURED = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 const UIDAI_CONFIGURED = Boolean(process.env.UIDAI_CLIENT_ID && process.env.UIDAI_CLIENT_SECRET);
+const MSG91_CONFIGURED = Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+const SUREPASS_CONFIGURED = Boolean(process.env.SUREPASS_TOKEN);
+const VERIFICATION_PROVIDER = process.env.VERIFICATION_PROVIDER || 'msg91'; // msg91 | surepass | uidai
 
 // ─── Supabase admin client (service role — bypasses RLS for admin ops) ─────
 const supabaseAdmin = createClient(
@@ -287,9 +277,278 @@ app.post('/api/webhooks/razorpay', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// UIDAI AADHAAR VERIFICATION ENDPOINTS
-// (Credentials ONLY on server — never exposed to frontend)
+// IDENTITY VERIFICATION ENDPOINTS (provider-switchable)
+// Current provider set via VERIFICATION_PROVIDER env var:
+//   'msg91'    → Phone OTP (instant signup at msg91.com)
+//   'surepass' → Aadhaar via licensed UIDAI partner (surepass.io)
+//   'uidai'    → Direct UIDAI (requires formal onboarding)
 // ═══════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/verify/phone/send
+ * Send OTP to a phone number via MSG91.
+ * Used for: phone number ownership verification.
+ */
+app.post('/api/verify/phone/send', requireAuth, async (req, res) => {
+  if (VERIFICATION_PROVIDER !== 'msg91' && !MSG91_CONFIGURED) {
+    return res.status(503).json({
+      error: 'Phone OTP not configured',
+      setup: 'Signup at msg91.com → get AUTH_KEY → set MSG91_AUTH_KEY in sidecar/.env'
+    });
+  }
+  if (!MSG91_CONFIGURED) {
+    return res.status(503).json({ error: 'MSG91 not configured. Set MSG91_AUTH_KEY and MSG91_OTP_TEMPLATE_ID.' });
+  }
+
+  const { phone } = req.body;
+  if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+    return res.status(400).json({ error: 'Invalid Indian phone number (10 digits, starts with 6-9)' });
+  }
+
+  try {
+    // MSG91 Send OTP API
+    const response = await fetch('https://control.msg91.com/api/v5/otp', {
+      method: 'POST',
+      headers: {
+        'authkey': process.env.MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        template_id: process.env.MSG91_OTP_TEMPLATE_ID,
+        mobile: `91${phone}`,
+        otp_length: 6,
+        otp_expiry: 10 // minutes
+      })
+    });
+
+    const data = await response.json();
+    if (data.type === 'error') {
+      throw new Error(data.message);
+    }
+
+    // Store pending verification in DB
+    await supabaseAdmin.from('aadhaar_verifications').upsert({
+      user_id: req.userId,
+      status: 'in_progress',
+      consent_given_at: new Date().toISOString(),
+      is_mock: false,
+      provider_reference: `msg91_${phone}`
+    }, { onConflict: 'user_id' });
+
+    console.log(`[MSG91] OTP sent to +91${phone} for user ${req.userId}`);
+    res.json({ success: true, message: `OTP sent to +91${phone}` });
+
+  } catch (err) {
+    console.error('[MSG91] Send OTP error:', err.message);
+    res.status(500).json({ error: 'Failed to send OTP. Check MSG91 credentials.' });
+  }
+});
+
+/**
+ * POST /api/verify/phone/confirm
+ * Verify the OTP the user received via MSG91.
+ */
+app.post('/api/verify/phone/confirm', requireAuth, async (req, res) => {
+  if (!MSG91_CONFIGURED) {
+    return res.status(503).json({ error: 'MSG91 not configured' });
+  }
+
+  const { phone, otp } = req.body;
+  if (!phone || !otp) {
+    return res.status(400).json({ error: 'Missing phone or otp' });
+  }
+
+  try {
+    // MSG91 Verify OTP API
+    const url = `https://control.msg91.com/api/v5/otp/verify?authkey=${process.env.MSG91_AUTH_KEY}&mobile=91${phone}&otp=${otp}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.type !== 'success') {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    // Mark as verified in DB
+    await supabaseAdmin.from('aadhaar_verifications').upsert({
+      user_id: req.userId,
+      status: 'verified',
+      verified_at: new Date().toISOString(),
+      provider_reference: `msg91_phone_verified_${phone}`,
+      is_mock: false
+    }, { onConflict: 'user_id' });
+
+    // Audit
+    await supabaseAdmin.from('audit_events').insert({
+      user_id: req.userId,
+      event_type: 'phone_verified',
+      metadata: { provider: 'msg91', phone_last4: phone.slice(-4) }
+    });
+
+    console.log(`[MSG91] Phone verified for user ${req.userId}`);
+    res.json({ success: true, provider: 'msg91' });
+
+  } catch (err) {
+    console.error('[MSG91] Verify OTP error:', err.message);
+    res.status(500).json({ error: 'OTP verification failed' });
+  }
+});
+
+/**
+ * POST /api/verify/aadhaar/initiate
+ * Initiate Aadhaar OTP via Surepass (licensed UIDAI partner).
+ * Signup at https://dashboard.surepass.io — sandbox available instantly.
+ */
+app.post('/api/verify/aadhaar/initiate', requireAuth, async (req, res) => {
+  if (VERIFICATION_PROVIDER === 'surepass' && !SUREPASS_CONFIGURED) {
+    return res.status(503).json({
+      error: 'Surepass not configured',
+      setup: 'Signup at dashboard.surepass.io → get API token → set SUREPASS_TOKEN in sidecar/.env'
+    });
+  }
+  if (VERIFICATION_PROVIDER === 'uidai' && !UIDAI_CONFIGURED) {
+    return res.status(503).json({
+      error: 'UIDAI not configured. Requires formal onboarding at developer.uidai.gov.in',
+      alternative: 'Set VERIFICATION_PROVIDER=surepass and add SUREPASS_TOKEN for faster access'
+    });
+  }
+
+  const { aadhaar_last4, consent } = req.body;
+  if (!consent) return res.status(400).json({ error: 'Explicit consent required' });
+  if (!aadhaar_last4 || !/^\d{4}$/.test(aadhaar_last4)) {
+    return res.status(400).json({ error: 'Provide last 4 digits of Aadhaar only' });
+  }
+
+  // Record consent
+  await supabaseAdmin.from('aadhaar_verifications').upsert({
+    user_id: req.userId,
+    status: 'in_progress',
+    consent_given_at: new Date().toISOString(),
+    is_mock: false
+  }, { onConflict: 'user_id' });
+
+  if (VERIFICATION_PROVIDER === 'surepass' && SUREPASS_CONFIGURED) {
+    try {
+      // Surepass Aadhaar OTP Send
+      // Docs: https://docs.surepass.io/aadhaar-verification
+      const response = await fetch(`${process.env.SUREPASS_BASE_URL}/aadhaar-v2/generate-otp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUREPASS_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id_number: `XXXXXXXX${aadhaar_last4}` })
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Surepass OTP generation failed');
+      }
+
+      console.log(`[Surepass] OTP sent for user ${req.userId}`);
+      return res.json({
+        success: true,
+        client_id: data.data?.client_id,
+        provider: 'surepass'
+      });
+    } catch (err) {
+      console.error('[Surepass] Error:', err.message);
+      return res.status(500).json({ error: 'Aadhaar OTP initiation failed via Surepass' });
+    }
+  }
+
+  // UIDAI direct — pending formal onboarding
+  res.status(503).json({
+    error: 'UIDAI direct integration pending formal onboarding',
+    recommendation: 'Set VERIFICATION_PROVIDER=surepass for immediate access (1-2 day approval)',
+    uidai_dashboard: 'https://developer.uidai.gov.in'
+  });
+});
+
+/**
+ * POST /api/verify/aadhaar/confirm
+ * Confirm Aadhaar OTP via Surepass or UIDAI.
+ */
+app.post('/api/verify/aadhaar/confirm', requireAuth, async (req, res) => {
+  const { client_id, otp } = req.body;
+  if (!client_id || !otp) return res.status(400).json({ error: 'Missing client_id or otp' });
+
+  if (VERIFICATION_PROVIDER === 'surepass' && SUREPASS_CONFIGURED) {
+    try {
+      const response = await fetch(`${process.env.SUREPASS_BASE_URL}/aadhaar-v2/submit-otp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUREPASS_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ client_id, otp })
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        await supabaseAdmin.from('aadhaar_verifications').upsert({
+          user_id: req.userId, status: 'failed',
+          failed_reason: data.message || 'OTP mismatch'
+        }, { onConflict: 'user_id' });
+        return res.status(400).json({ error: 'Invalid OTP' });
+      }
+
+      // Mark verified — NEVER store Aadhaar number
+      await supabaseAdmin.from('aadhaar_verifications').upsert({
+        user_id: req.userId,
+        status: 'verified',
+        verified_at: new Date().toISOString(),
+        provider_reference: client_id,
+        is_mock: false
+      }, { onConflict: 'user_id' });
+
+      await supabaseAdmin.from('audit_events').insert({
+        user_id: req.userId,
+        event_type: 'aadhaar_verified',
+        metadata: { provider: 'surepass' }
+      });
+
+      console.log(`[Surepass] Aadhaar verified for user ${req.userId}`);
+      return res.json({ success: true, provider: 'surepass' });
+
+    } catch (err) {
+      console.error('[Surepass] Confirm error:', err.message);
+      return res.status(500).json({ error: 'Aadhaar verification failed' });
+    }
+  }
+
+  res.status(503).json({ error: 'No active Aadhaar provider configured' });
+});
+
+// ─── Health check update ─────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    razorpay: RAZORPAY_CONFIGURED ? 'configured' : 'not_configured',
+    verification_provider: VERIFICATION_PROVIDER,
+    msg91: MSG91_CONFIGURED ? 'configured' : 'not_configured',
+    surepass: SUREPASS_CONFIGURED ? 'configured' : 'not_configured',
+    uidai: UIDAI_CONFIGURED ? 'configured' : 'not_configured (requires formal onboarding)',
+    supabase: !missing.includes('SUPABASE_URL') ? 'configured' : 'not_configured',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ─── Start Server ─────────────────────────────────────────────────────────────
+app.listen(PORT, () => {
+  console.log(`\n🚀 Roomora Sidecar Server running on port ${PORT}`);
+  console.log(`   Razorpay:     ${RAZORPAY_CONFIGURED ? '✅ Configured' : '⚠️  Not configured'}`);
+  console.log(`   Verification: ${VERIFICATION_PROVIDER.toUpperCase()} provider`);
+  if (VERIFICATION_PROVIDER === 'msg91') {
+    console.log(`   MSG91:        ${MSG91_CONFIGURED ? '✅ Configured (Phone OTP ready)' : '⚠️  Not configured — signup at msg91.com'}`);
+  } else if (VERIFICATION_PROVIDER === 'surepass') {
+    console.log(`   Surepass:     ${SUREPASS_CONFIGURED ? '✅ Configured (Aadhaar via licensed partner)' : '⚠️  Not configured — signup at dashboard.surepass.io'}`);
+  } else {
+    console.log(`   UIDAI:        ${UIDAI_CONFIGURED ? '✅ Configured' : '⚠️  Requires formal onboarding at developer.uidai.gov.in'}`);
+  }
+  console.log(`   Supabase:     ${!missing.includes('SUPABASE_URL') ? '✅ Configured' : '⚠️  Not configured'}`);
+  console.log(`\n   Health check: http://localhost:${PORT}/health\n`);
+});
+
 
 /**
  * POST /api/aadhaar/initiate

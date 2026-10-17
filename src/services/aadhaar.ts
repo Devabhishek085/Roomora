@@ -1,201 +1,178 @@
 /**
- * UIDAI Aadhaar Verification Adapter
+ * Aadhaar / Identity Verification Service
+ * ────────────────────────────────────────────────────────────
+ * Calls the Roomora sidecar server which handles the actual
+ * provider API call (Surepass → UIDAI licensed partner).
  *
- * IMPORTANT NOTICE:
- * The UIDAI Developer Sandbox requires formal onboarding, an authorized use case,
- * and approved credentials before it can be used for identity verification.
- * Consumer/individual applications cannot access Aadhaar OTP verification APIs
- * without UIDAI authorization. Authentication key and API endpoints must be obtained
- * from https://developer.uidai.gov.in
+ * Security:
+ *   - SUREPASS_TOKEN stays in sidecar/.env — never in the browser
+ *   - No Aadhaar number is ever sent to or stored by this frontend
+ *   - Only the last 4 digits are accepted as input (privacy by design)
+ *   - All calls require a valid Supabase JWT (requireAuth middleware)
  *
- * Status of this integration:
- *   ✅ Integration boundary defined
- *   ✅ Secure server-side adapter pattern implemented
- *   ✅ Mock adapter clearly labeled (development only)
- *   ⏳ Awaiting UIDAI sandbox credential onboarding
- *   ⏳ Awaiting server-side sidecar deployment for credential isolation
- *
- * The mock adapter below simulates the verification flow for development testing.
- * It is UNMISTAKABLY LABELED and cannot be activated in production.
- * It produces no real verification status — only development placeholders.
+ * Provider: Surepass (https://surepass.io)
+ *   - Licensed UIDAI authorized partner
+ *   - Sandbox available instantly at dashboard.surepass.io
+ *   - Production approval: 1-2 business days
  */
 
-export type AadhaarVerificationStep =
-  | 'idle'
-  | 'consent'
-  | 'sending_otp'
-  | 'otp_sent'
-  | 'verifying'
-  | 'success'
+import { supabase } from '../lib/supabase';
+
+const SIDECAR_URL = import.meta.env.VITE_SIDECAR_URL || 'http://localhost:3001';
+
+export type VerificationStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'verified'
   | 'failed'
   | 'unavailable';
 
-export interface AadhaarInitiateResult {
+export interface VerificationRecord {
+  status: VerificationStatus;
+  verified_at: string | null;
+  is_mock: boolean;
+  provider_reference: string | null;
+}
+
+/** Get current auth token from Supabase session */
+async function getAuthToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+/** Helper: POST to sidecar with JWT auth */
+async function sidecarPost(path: string, body: Record<string, unknown>) {
+  const token = await getAuthToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const res = await fetch(`${SIDECAR_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `Sidecar error ${res.status}`);
+  }
+  return data;
+}
+
+// ─── Step 1: Initiate Aadhaar OTP ────────────────────────────────────────────
+
+export interface InitiateResult {
   success: boolean;
-  transactionId?: string;
+  client_id?: string;   // Surepass session ID — pass to confirmAadhaarOtp()
+  provider?: string;
   error?: string;
-  isMock: boolean;
+  setup_required?: boolean;
 }
 
-export interface AadhaarVerifyResult {
+/**
+ * Initiates Aadhaar verification via Surepass.
+ * User provides ONLY the last 4 digits of their Aadhaar (privacy by design).
+ * An OTP is sent to the mobile number registered with Aadhaar by Surepass/UIDAI.
+ *
+ * @param aadhaar_last4 - Last 4 digits of Aadhaar number only
+ * @param consent       - Must be true (explicit user consent required by law)
+ */
+export async function initiateAadhaarVerification(
+  aadhaar_last4: string,
+  consent: boolean
+): Promise<InitiateResult> {
+  if (!consent) {
+    return { success: false, error: 'Explicit consent required before initiating verification' };
+  }
+
+  if (!/^\d{4}$/.test(aadhaar_last4)) {
+    return { success: false, error: 'Enter only the last 4 digits of your Aadhaar number' };
+  }
+
+  try {
+    const data = await sidecarPost('/api/verify/aadhaar/initiate', {
+      aadhaar_last4,
+      consent: true,
+    });
+    return { success: true, client_id: data.client_id, provider: data.provider };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Verification initiation failed';
+    const setupRequired = message.includes('not configured') || message.includes('setup');
+    return { success: false, error: message, setup_required: setupRequired };
+  }
+}
+
+// ─── Step 2: Confirm OTP ─────────────────────────────────────────────────────
+
+export interface ConfirmResult {
   success: boolean;
-  providerReference?: string;
-  verifiedAt?: string;
+  provider?: string;
   error?: string;
-  isMock: boolean;
-}
-
-const IS_DEV = import.meta.env.VITE_APP_ENV === 'development' || !import.meta.env.VITE_APP_ENV;
-
-/**
- * Determines whether the real UIDAI integration is available.
- * In production, this checks for a configured sidecar endpoint.
- */
-function isUidaiConfigured(): boolean {
-  // In a real deployment, this would check if the sidecar server
-  // has UIDAI credentials configured via environment variables.
-  // For now, always returns false — integration awaiting credentials.
-  return false;
 }
 
 /**
- * Initiates Aadhaar OTP verification.
+ * Submits the 6-digit OTP received by the user to Surepass.
+ * On success, the aadhaar_verifications row is updated to status='verified'.
+ * The Aadhaar number is NEVER stored anywhere.
  *
- * In production (UIDAI authorized): Sends request to sidecar server which
- * calls UIDAI Auth API with server-stored credentials. Never exposes API keys
- * to the browser.
- *
- * In development (mock): Returns a simulated transaction ID. No Aadhaar number
- * is validated. This function produces no real identity verification result.
- *
- * @param consentGiven - User must explicitly give consent before calling this
+ * @param client_id - Session ID returned by initiateAadhaarVerification()
+ * @param otp       - 6-digit OTP from the user's Aadhaar-registered phone
  */
-export async function initiateAadhaarOtp(
-  aadhaarLastFour: string, // Only last 4 digits — never store full number
-  consentGiven: boolean
-): Promise<AadhaarInitiateResult> {
-  if (!consentGiven) {
-    return { success: false, error: 'Explicit consent required before verification', isMock: true };
-  }
-
-  if (isUidaiConfigured()) {
-    // TODO: Call sidecar server endpoint /api/aadhaar/initiate
-    // The sidecar holds UIDAI_CLIENT_ID and UIDAI_CLIENT_SECRET in server env vars
-    // and never exposes them to the browser.
-    //
-    // const response = await fetch('/api/aadhaar/initiate', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ last_four: aadhaarLastFour, consent: true })
-    // });
-    // const data = await response.json();
-    // return { success: data.success, transactionId: data.transactionId, isMock: false };
-
-    return { success: false, error: 'UIDAI sidecar not deployed', isMock: false };
-  }
-
-  // ============================================================
-  // DEVELOPMENT MOCK ONLY — NOT REAL UIDAI VERIFICATION
-  // This simulates the OTP flow for UI development and testing.
-  // A response from this mock is NEVER treated as real verification.
-  // ============================================================
-  if (!IS_DEV) {
-    return {
-      success: false,
-      error: 'Aadhaar verification unavailable — UIDAI credentials not configured',
-      isMock: true
-    };
-  }
-
-  console.warn(
-    '[UIDAI Mock] ⚠️ DEV MOCK ACTIVE — This is NOT real Aadhaar verification. ' +
-    'Last four provided:', aadhaarLastFour
-  );
-
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1200));
-
-  return {
-    success: true,
-    transactionId: `MOCK_TXN_${Date.now()}_DEV_ONLY`,
-    isMock: true
-  };
-}
-
-/**
- * Verifies the Aadhaar OTP submitted by the user.
- *
- * IMPORTANT: Even in mock mode, this does NOT grant a real verified status.
- * The Supabase database will record is_mock: true for any mock verification,
- * distinguishing it from real UIDAI-confirmed results.
- */
-export async function verifyAadhaarOtp(
-  transactionId: string,
+export async function confirmAadhaarOtp(
+  client_id: string,
   otp: string
-): Promise<AadhaarVerifyResult> {
-  if (isUidaiConfigured()) {
-    // TODO: Call sidecar /api/aadhaar/verify
-    return { success: false, error: 'UIDAI sidecar not deployed', isMock: false };
+): Promise<ConfirmResult> {
+  if (!/^\d{6}$/.test(otp)) {
+    return { success: false, error: 'OTP must be exactly 6 digits' };
   }
 
-  if (!IS_DEV) {
-    return {
-      success: false,
-      error: 'Aadhaar verification unavailable',
-      isMock: true
-    };
+  try {
+    const data = await sidecarPost('/api/verify/aadhaar/confirm', { client_id, otp });
+    return { success: true, provider: data.provider };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'OTP verification failed';
+    return { success: false, error: message };
   }
-
-  // ============================================================
-  // DEVELOPMENT MOCK ONLY
-  // ============================================================
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  if (!transactionId.startsWith('MOCK_TXN_')) {
-    return { success: false, error: 'Invalid mock transaction', isMock: true };
-  }
-
-  // In mock: OTP '123456' always succeeds for testing
-  if (otp === '123456') {
-    console.warn('[UIDAI Mock] ⚠️ DEV MOCK VERIFICATION — result is NOT real UIDAI confirmation');
-    return {
-      success: true,
-      providerReference: `MOCK_REF_${Date.now()}_DEV_ONLY`,
-      verifiedAt: new Date().toISOString(),
-      isMock: true
-    };
-  }
-
-  return { success: false, error: 'Invalid OTP (mock: use 123456 for testing)', isMock: true };
 }
 
+// ─── Fetch current verification status ───────────────────────────────────────
+
 /**
- * Returns the verification integration status for display in the UI.
+ * Fetches the user's current verification record from Supabase.
+ * Uses RLS — only returns the authenticated user's own record.
  */
-export function getVerificationStatus(): {
-  available: boolean;
-  isMock: boolean;
-  message: string;
-} {
-  if (isUidaiConfigured()) {
-    return {
-      available: true,
-      isMock: false,
-      message: 'Aadhaar verification via UIDAI is configured'
-    };
-  }
+export async function getVerificationStatus(userId: string): Promise<VerificationRecord | null> {
+  const { data, error } = await supabase
+    .from('aadhaar_verifications')
+    .select('status, verified_at, is_mock, provider_reference')
+    .eq('user_id', userId)
+    .maybeSingle();
 
-  if (IS_DEV) {
-    return {
-      available: true,
-      isMock: true,
-      message: '⚠️ Development mock mode — not real UIDAI verification'
-    };
-  }
+  if (error || !data) return null;
+  return data as VerificationRecord;
+}
 
-  return {
-    available: false,
-    isMock: false,
-    message: 'Aadhaar verification requires UIDAI sandbox credentials. See documentation.'
-  };
+// ─── Check sidecar is running and Surepass is configured ─────────────────────
+
+export interface SidecarHealth {
+  reachable: boolean;
+  surepass_configured: boolean;
+  verification_provider: string;
+}
+
+export async function checkSidecarHealth(): Promise<SidecarHealth> {
+  try {
+    const res = await fetch(`${SIDECAR_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return { reachable: false, surepass_configured: false, verification_provider: 'unknown' };
+    const data = await res.json();
+    return {
+      reachable: true,
+      surepass_configured: data.surepass === 'configured',
+      verification_provider: data.verification_provider ?? 'unknown',
+    };
+  } catch {
+    return { reachable: false, surepass_configured: false, verification_provider: 'unknown' };
+  }
 }

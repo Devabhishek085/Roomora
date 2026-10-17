@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files — NEVER commit secrets
+.env
+.env.*
+!.env.example
+sidecar/.env
+sidecar/.env.*

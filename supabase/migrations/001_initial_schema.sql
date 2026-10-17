@@ -174,7 +174,6 @@ CREATE TABLE IF NOT EXISTS public.user_reports (
 );
 
 CREATE TABLE IF NOT EXISTS public.user_blocks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   blocker_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   blocked_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

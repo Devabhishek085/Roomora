@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, Users, ArrowRight, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Users, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, sendEmailOtp, verifyEmailOtp, isLoading } = useAuthStore();
-
-  // Mode: 'otp' | 'password'
-  const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
+  const { signUp, resendSignupOtp, verifyEmailOtp, isLoading } = useAuthStore();
 
   // Form states
   const [displayName, setDisplayName] = useState('');
@@ -35,47 +32,8 @@ export const RegisterPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Handle Send OTP
-  const handleSendOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setError(null);
-
-    if (!displayName.trim()) return setError('Please enter your display name.');
-    if (!email.includes('@')) return setError('Please enter a valid email address.');
-
-    const result = await sendEmailOtp(email, displayName.trim());
-    if (result.error) {
-      if (result.error.toLowerCase().includes('rate limit')) {
-        setError('Email rate limit reached on default server. Please wait a few minutes or switch to password registration below.');
-      } else {
-        setError(result.error);
-      }
-    } else {
-      setOtpSent(true);
-      setResendCooldown(30);
-    }
-  };
-
-  // Handle Verify OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!otpCode.trim() || otpCode.trim().length < 6) {
-      return setError('Please enter the full 6-digit code sent to your email.');
-    }
-
-    const result = await verifyEmailOtp(email, otpCode.trim());
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setSuccess(true);
-      setTimeout(() => navigate('/onboarding'), 1500);
-    }
-  };
-
-  // Handle Password Signup
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
+  // Handle Registration Submit (Step 1: Create Account & Send OTP)
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -85,6 +43,45 @@ export const RegisterPage: React.FC = () => {
     if (password !== confirmPassword) return setError('Passwords do not match.');
 
     const result = await signUp(email, password, displayName.trim());
+    if (result.error) {
+      if (result.error.toLowerCase().includes('already registered')) {
+        setError('An account with this email already exists. Please sign in with your password.');
+      } else {
+        setError(result.error);
+      }
+    } else if (result.needsOtp) {
+      setOtpSent(true);
+      setResendCooldown(30);
+    } else {
+      // Session granted immediately (e.g. if email confirmation is disabled)
+      setSuccess(true);
+      setTimeout(() => navigate('/onboarding'), 1500);
+    }
+  };
+
+  // Handle Resend OTP
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isLoading) return;
+    setError(null);
+
+    const result = await resendSignupOtp(email);
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setResendCooldown(30);
+    }
+  };
+
+  // Handle Verify OTP (Step 2: Enter verification code)
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!otpCode.trim() || otpCode.trim().length < 6) {
+      return setError('Please enter the full verification code sent to your email.');
+    }
+
+    const result = await verifyEmailOtp(email, otpCode.trim());
     if (result.error) {
       setError(result.error);
     } else {
@@ -118,216 +115,34 @@ export const RegisterPage: React.FC = () => {
             </div>
           )}
 
-          {/* Mode Switcher Tabs */}
-          {!success && !otpSent && (
-            <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 mb-6 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => { setAuthMode('otp'); setError(null); }}
-                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  authMode === 'otp'
-                    ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>Instant Email OTP</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthMode('password'); setError(null); }}
-                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  authMode === 'password'
-                    ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Password</span>
-              </button>
-            </div>
-          )}
-
           {success ? (
+            /* Success confirmation */
             <div className="text-center py-4">
               <div className="w-16 h-16 mx-auto rounded-full bg-teal-100 dark:bg-teal-950 flex items-center justify-center mb-4">
                 <ShieldCheck className="w-8 h-8 text-teal-600 dark:text-teal-400" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Account Created!</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Account Verified!</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 You've received 10 free connection tokens. Redirecting to your profile setup...
               </p>
             </div>
-          ) : authMode === 'otp' ? (
-            /* OTP Flow */
-            !otpSent ? (
-              /* Step 1: Request OTP */
-              <form onSubmit={handleSendOtp} className="space-y-5" id="register-otp-request-form">
-                {/* Display Name */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-name">
-                    Display Name
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      id="reg-name"
-                      type="text"
-                      autoComplete="name"
-                      value={displayName}
-                      onChange={e => setDisplayName(e.target.value)}
-                      placeholder="Your first name or nickname"
-                      required
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-teal-500 transition"
-                    />
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-email">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      id="reg-email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      required
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-teal-500 transition"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
-                    We'll email you a secure 6-digit one-time code. No password to remember.
-                  </p>
-                </div>
-
-                {error && (
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium">
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/40 text-teal-800 dark:text-teal-300 text-xs">
-                  <Users className="w-4 h-4 shrink-0" />
-                  <span>Every new account starts with <strong>10 free connection tokens</strong>.</span>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all shadow-md active:scale-95"
-                  id="register-send-otp-btn"
-                >
-                  {isLoading ? (
-                    <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
-                  ) : (
-                    <>
-                      <span>Send 6-Digit Code</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            ) : (
-              /* Step 2: Verify OTP */
-              <form onSubmit={handleVerifyOtp} className="space-y-5" id="register-verify-otp-form">
-                <div className="text-center space-y-1">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 mb-2">
-                    <Mail className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Check your email</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    We sent a 6-digit confirmation code to:
-                  </p>
-                  <p className="text-xs font-bold text-teal-600 dark:text-teal-400 font-mono">
-                    {email}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-center" htmlFor="reg-otp-code">
-                    Enter 6-Digit Code
-                  </label>
-                  <input
-                    id="reg-otp-code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={8}
-                    value={otpCode}
-                    onChange={e => setOtpCode(e.target.value)}
-                    placeholder="123456"
-                    required
-                    autoFocus
-                    className="w-full text-center tracking-[0.4em] font-mono text-xl py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 transition"
-                  />
-                </div>
-
-                {error && (
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading || otpCode.trim().length < 6}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all shadow-md active:scale-95"
-                  id="register-confirm-otp-btn"
-                >
-                  {isLoading ? (
-                    <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
-                  ) : (
-                    <>
-                      <span>Verify & Create Account</span>
-                      <ShieldCheck className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                <div className="flex items-center justify-between text-xs pt-2">
-                  <button
-                    type="button"
-                    onClick={() => { setOtpSent(false); setOtpCode(''); setError(null); }}
-                    className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                  >
-                    ← Change Email
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={resendCooldown > 0 || isLoading}
-                    onClick={() => handleSendOtp()}
-                    className="text-teal-600 dark:text-teal-400 font-bold hover:underline disabled:opacity-50 disabled:no-underline flex items-center gap-1"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${resendCooldown > 0 ? '' : 'hover:rotate-180 transition-transform'}`} />
-                    <span>{resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}</span>
-                  </button>
-                </div>
-              </form>
-            )
-          ) : (
-            /* Password Signup Flow */
-            <form onSubmit={handlePasswordSubmit} className="space-y-5" id="register-password-form">
+          ) : !otpSent ? (
+            /* Step 1: Registration Form with Name, Email & Password */
+            <form onSubmit={handleRegisterSubmit} className="space-y-5" id="register-form">
               {/* Display Name */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-pwd-name">
-                  Display Name
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-name">
+                  Full / Display Name
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    id="reg-pwd-name"
+                    id="reg-name"
                     type="text"
                     autoComplete="name"
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
-                    placeholder="Your first name or nickname"
+                    placeholder="Your name"
                     required
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-teal-500 transition"
                   />
@@ -336,13 +151,13 @@ export const RegisterPage: React.FC = () => {
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-pwd-email">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reg-email">
                   Email Address
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    id="reg-pwd-email"
+                    id="reg-email"
                     type="email"
                     autoComplete="email"
                     value={email}
@@ -424,18 +239,99 @@ export const RegisterPage: React.FC = () => {
                   <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
                 ) : (
                   <>
-                    <span>Create Account</span>
+                    <span>Create Account & Verify</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
+
+              <p className="text-[11px] text-center text-slate-500 dark:text-slate-400">
+                🔒 You only verify your email once with an OTP upon registering. Afterward, you will simply sign in with your password.
+              </p>
+            </form>
+          ) : (
+            /* Step 2: One-time OTP Verification Form */
+            <form onSubmit={handleVerifyOtp} className="space-y-5" id="register-verify-otp-form">
+              <div className="text-center space-y-1">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 mb-2">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Verify Your Email</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  We emailed a one-time verification code to:
+                </p>
+                <p className="text-xs font-bold text-teal-600 dark:text-teal-400 font-mono">
+                  {email}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-center" htmlFor="reg-otp-code">
+                  Enter Verification Code
+                </label>
+                <input
+                  id="reg-otp-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={8}
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value)}
+                  placeholder="123456"
+                  required
+                  autoFocus
+                  className="w-full text-center tracking-[0.4em] font-mono text-xl py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 transition"
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading || otpCode.trim().length < 6}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all shadow-md active:scale-95"
+                id="register-confirm-otp-btn"
+              >
+                {isLoading ? (
+                  <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
+                ) : (
+                  <>
+                    <span>Verify & Complete Registration</span>
+                    <ShieldCheck className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center justify-between text-xs pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setOtpSent(false); setOtpCode(''); setError(null); }}
+                  className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                >
+                  ← Edit details
+                </button>
+
+                <button
+                  type="button"
+                  disabled={resendCooldown > 0 || isLoading}
+                  onClick={handleResendOtp}
+                  className="text-teal-600 dark:text-teal-400 font-bold hover:underline disabled:opacity-50 disabled:no-underline flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${resendCooldown > 0 ? '' : 'hover:rotate-180 transition-transform'}`} />
+                  <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
+                </button>
+              </div>
             </form>
           )}
 
           <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-5">
             Already have an account?{' '}
             <Link to="/login" className="text-teal-600 dark:text-teal-400 font-bold hover:underline">
-              Sign in
+              Sign in with password
             </Link>
           </p>
         </div>

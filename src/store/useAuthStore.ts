@@ -16,9 +16,10 @@ interface AuthState {
 
   // Actions
   initialize: () => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null; needsOtp?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   sendEmailOtp: (email: string, displayName?: string) => Promise<{ error: string | null }>;
+  resendSignupOtp: (email: string) => Promise<{ error: string | null }>;
   verifyEmailOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -93,15 +94,18 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         return { error: error.message };
       }
 
-      if (data.user) {
+      // If user session is returned immediately (e.g. email confirmation disabled in Supabase)
+      if (data.session && data.user) {
         set({ user: data.user, session: data.session });
-        // Profile and tokens are auto-created via database trigger
         await get().refreshProfile();
         await get().refreshTokenBalance();
+        set({ isLoading: false });
+        return { error: null, needsOtp: false };
       }
 
+      // If user created but session is null, an OTP verification code was emailed
       set({ isLoading: false });
-      return { error: null };
+      return { error: null, needsOtp: true };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       set({ error: msg, isLoading: false });
@@ -172,6 +176,33 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
+  resendSignupOtp: async (email) => {
+    if (!isSupabaseConfigured) {
+      return { error: 'Backend not configured. Please set up Supabase credentials.' };
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.toLowerCase().trim()
+      });
+
+      if (error) {
+        set({ error: error.message, isLoading: false });
+        return { error: error.message };
+      }
+
+      set({ isLoading: false });
+      return { error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to resend code';
+      set({ error: msg, isLoading: false });
+      return { error: msg };
+    }
+  },
+
   verifyEmailOtp: async (email, token) => {
     if (!isSupabaseConfigured) {
       return { error: 'Backend not configured. Please set up Supabase credentials.' };
@@ -180,11 +211,25 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      // First try signup type (from registration with password)
+      let { data, error } = await supabase.auth.verifyOtp({
         email: email.toLowerCase().trim(),
         token: token.trim(),
-        type: 'email'
+        type: 'signup'
       });
+
+      // If error, retry with email type (from signInWithOtp / magic link)
+      if (error) {
+        const fallback = await supabase.auth.verifyOtp({
+          email: email.toLowerCase().trim(),
+          token: token.trim(),
+          type: 'email'
+        });
+        if (!fallback.error) {
+          data = fallback.data;
+          error = null;
+        }
+      }
 
       if (error) {
         set({ error: error.message, isLoading: false });

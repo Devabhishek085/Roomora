@@ -8,7 +8,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { signIn, sendEmailOtp, verifyEmailOtp, isLoading } = useAuthStore();
 
-  const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
+  const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
 
   // Password state
   const [email, setEmail] = useState('');
@@ -74,7 +74,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
 
     if (!otpCode.trim() || otpCode.trim().length < 6) {
-      return setError('Please enter the full 6-digit code sent to your email.');
+      return setError('Please enter the full code sent to your email.');
     }
 
     const result = await verifyEmailOtp(email, otpCode.trim());
@@ -115,18 +115,6 @@ export const LoginPage: React.FC = () => {
             <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 mb-6 text-xs font-bold">
               <button
                 type="button"
-                onClick={() => { setAuthMode('otp'); setError(null); }}
-                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  authMode === 'otp'
-                    ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>6-Digit Email OTP</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => { setAuthMode('password'); setError(null); }}
                 className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                   authMode === 'password'
@@ -136,6 +124,18 @@ export const LoginPage: React.FC = () => {
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>Password</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('otp'); setError(null); }}
+                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  authMode === 'otp'
+                    ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Email OTP</span>
               </button>
             </div>
           )}

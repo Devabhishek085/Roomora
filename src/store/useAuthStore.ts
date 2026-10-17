@@ -20,7 +20,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   sendEmailOtp: (email: string, displayName?: string) => Promise<{ error: string | null }>;
   resendSignupOtp: (email: string) => Promise<{ error: string | null }>;
-  verifyEmailOtp: (email: string, token: string) => Promise<{ error: string | null }>;
+  verifyEmailOtp: (email: string, token: string, password?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshTokenBalance: () => Promise<void>;
@@ -203,7 +203,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
-  verifyEmailOtp: async (email, token) => {
+  verifyEmailOtp: async (email, token, password) => {
     if (!isSupabaseConfigured) {
       return { error: 'Backend not configured. Please set up Supabase credentials.' };
     }
@@ -234,6 +234,18 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       if (error) {
         set({ error: error.message, isLoading: false });
         return { error: error.message };
+      }
+
+      // If a password was provided at registration, set it now so they can log in via password
+      if (password) {
+        try {
+          const { error: pwdError } = await supabase.auth.updateUser({ password });
+          if (pwdError) {
+            console.warn('[AuthStore] Warning setting password on verification:', pwdError.message);
+          }
+        } catch (e) {
+          console.warn('[AuthStore] Exception setting password:', e);
+        }
       }
 
       if (data.user) {

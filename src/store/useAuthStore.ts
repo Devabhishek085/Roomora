@@ -288,20 +288,33 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
-        redirectTo: redirectUrl
+      const cleanEmail = email.toLowerCase().trim();
+
+      // First try signInWithOtp (which sends the 6-digit numeric OTP code by default)
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: cleanEmail,
+        options: {
+          shouldCreateUser: false
+        }
       });
 
-      if (error) {
-        set({ error: error.message, isLoading: false });
-        return { error: error.message };
+      if (otpError) {
+        // Fallback to resetPasswordForEmail
+        const redirectUrl = `${window.location.origin}/reset-password`;
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: redirectUrl
+        });
+
+        if (resetError) {
+          set({ error: resetError.message, isLoading: false });
+          return { error: resetError.message };
+        }
       }
 
       set({ isLoading: false });
       return { error: null };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to send reset email';
+      const msg = err instanceof Error ? err.message : 'Failed to send recovery code';
       set({ error: msg, isLoading: false });
       return { error: msg };
     }

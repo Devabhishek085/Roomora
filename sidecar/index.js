@@ -614,6 +614,108 @@ app.post('/api/aadhaar/verify', requireAuth, async (req, res) => {
   });
 });
 
+/**
+ * POST /api/notifications/connection-request
+ * Sends an email notification to the recipient when a connection invitation is created.
+ */
+app.post('/api/notifications/connection-request', async (req, res) => {
+  try {
+    const { recipientId, initiatorName, initiatorOccupation, initiatorCity } = req.body;
+    if (!recipientId) {
+      return res.status(400).json({ error: 'recipientId is required' });
+    }
+
+    let recipientEmail = null;
+    let recipientName = 'Roommate';
+
+    try {
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(recipientId);
+      if (!userError && userData?.user?.email) {
+        recipientEmail = userData.user.email;
+        recipientName = userData.user.user_metadata?.full_name || userData.user.user_metadata?.name || 'there';
+      }
+    } catch (e) {
+      console.warn('[Notifications] Could not fetch user from auth admin:', e.message);
+    }
+
+    if (!recipientEmail) {
+      const { data: profile } = await supabaseAdmin.from('profiles').select('display_name').eq('id', recipientId).single();
+      if (profile?.display_name) recipientName = profile.display_name;
+    }
+
+    console.log(`[Notifications] Connection request to ${recipientEmail || recipientId} from ${initiatorName || 'someone'}`);
+
+    if (process.env.RESEND_API_KEY && recipientEmail) {
+      const emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <div style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); padding: 32px 24px; text-align: center;">
+            <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px;">Roomora</h1>
+            <p style="color: #ccfbf1; font-size: 14px; margin: 0; font-weight: 500;">Smart Roommate Finding Platform</p>
+          </div>
+          <div style="padding: 32px 28px;">
+            <h2 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 16px 0;">New Connection Invitation! 🤝</h2>
+            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+              Hi <strong>${recipientName}</strong>,
+            </p>
+            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+              <strong>${initiatorName || 'A user'}</strong> (${[initiatorOccupation, initiatorCity].filter(Boolean).join(' • ')}) wants to connect with you on Roomora!
+            </p>
+            <div style="background: #f8fafc; border-radius: 12px; padding: 18px 20px; border-left: 4px solid #14b8a6; margin-bottom: 24px;">
+              <p style="color: #334155; font-size: 14px; margin: 0; font-weight: 500;">
+                🔒 For mutual safety and privacy, you must accept their connection invitation before chatting begins.
+              </p>
+            </div>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${process.env.FRONTEND_ORIGIN || 'https://roomora.vercel.app'}/connections" style="background: #14b8a6; color: #022c22; font-weight: 700; font-size: 15px; text-decoration: none; padding: 14px 32px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);">
+                Review & Accept Invitation
+              </a>
+            </div>
+            <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center; margin: 24px 0 0 0;">
+              If you didn't expect this invitation, you can decline it at any time on your Connections page.
+            </p>
+          </div>
+          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #64748b; font-size: 12px; margin: 0;">
+              © ${new Date().getFullYear()} Roomora. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `;
+
+      try {
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL || 'Roomora <onboarding@resend.dev>',
+            to: [recipientEmail],
+            subject: `🤝 New Roommate Connection Request from ${initiatorName || 'someone'} on Roomora`,
+            html: emailHtml
+          })
+        });
+
+        const resendData = await resendRes.json();
+        return res.json({ success: true, sent: true, resendId: resendData.id });
+      } catch (sendErr) {
+        console.error('[Notifications] Resend API error:', sendErr);
+      }
+    }
+
+    return res.json({
+      success: true,
+      sent: false,
+      simulated: true,
+      message: 'Email simulated (RESEND_API_KEY not configured or recipient email not found)'
+    });
+  } catch (err) {
+    console.error('[Notifications] Error sending connection notification:', err);
+    res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
 // ─── Start Server ─────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 Roomora Sidecar Server running on port ${PORT}`);

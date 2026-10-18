@@ -5,6 +5,7 @@ import type { RoommateProfile } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAppStore } from '../store/useAppStore';
 import { initiateConnection, checkExistingConnection, getConversationByConnection } from '../services/connections';
+import { sendConnectionInvitationEmail } from '../services/notifications';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 interface ConnectModalProps {
@@ -16,10 +17,11 @@ type ModalStep = 'confirm' | 'processing' | 'success' | 'already_connected' | 'n
 
 export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose }) => {
   const navigate = useNavigate();
-  const { user, tokenBalance, refreshTokenBalance } = useAuthStore();
+  const { user, dbProfile, tokenBalance, refreshTokenBalance } = useAuthStore();
   const { addRoommateRequest } = useAppStore(); // Fallback for demo mode
   const [step, setStep] = useState<ModalStep>('confirm');
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [existingStatus, setExistingStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Reset state when roommate changes & manage scroll lock
@@ -27,6 +29,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
     if (roommate) {
       setStep('confirm');
       setConversationId(null);
+      setExistingStatus(null);
       setErrorMessage(null);
       const lenis = (window as any).__lenis;
       if (lenis && typeof lenis.stop === 'function') lenis.stop();
@@ -68,11 +71,12 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
     if (existing) {
       const convoId = await getConversationByConnection(existing.id);
       setConversationId(convoId);
+      setExistingStatus(existing.status);
       setStep('already_connected');
       return;
     }
 
-    // Initiate connection (atomic token deduction)
+    // Initiate connection (atomic token deduction & creates pending invitation)
     const result = await initiateConnection(user.id, roommate.id);
 
     if (result.success) {
@@ -82,11 +86,22 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
         const convoId = await getConversationByConnection(result.connectionId);
         setConversationId(convoId);
       }
+
+      // Fire email notification to recipient
+      sendConnectionInvitationEmail({
+        recipientId: roommate.id,
+        recipientName: roommate.name,
+        initiatorName: dbProfile?.display_name || user.user_metadata?.full_name || 'A user',
+        initiatorOccupation: dbProfile?.occupation || undefined,
+        initiatorCity: dbProfile?.city || undefined
+      }).catch(err => console.warn('[ConnectModal] Notification dispatch error:', err));
+
       setStep('success');
     } else {
       if (result.error === 'insufficient_tokens') {
         setStep('no_tokens');
       } else if (result.error === 'connection_already_exists') {
+        setExistingStatus('pending');
         setStep('already_connected');
       } else if (result.error === 'cannot_connect_to_demo_profile') {
         setStep('demo_profile');
@@ -191,16 +206,19 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
       case 'success':
         return (
           <div className="text-center space-y-5 py-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-teal-100 dark:bg-teal-950 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-teal-100 dark:bg-teal-950/70 border border-teal-300 dark:border-teal-700/60 flex items-center justify-center">
               <ShieldCheck className="w-8 h-8 text-teal-600 dark:text-teal-400" />
             </div>
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">
-                Connected! 🎉
+                Invitation Sent! 📨
               </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                You're now connected with {roommate.name}. Start a conversation!
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                We've sent your request and notified <strong className="text-slate-900 dark:text-white">{roommate.name}</strong> by email.
               </p>
+              <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400">
+                🔒 For privacy, chatting will unlock as soon as {roommate.name} accepts your connection invitation.
+              </div>
               {tokenBalance && (
                 <p className="text-xs text-teal-600 dark:text-teal-400 mt-2 font-semibold">
                   {tokenBalance.balance} connection{tokenBalance.balance !== 1 ? 's' : ''} remaining
@@ -209,39 +227,50 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
             </div>
             <div className="flex gap-3">
               <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 transition-all">
-                Close
+                Done
               </button>
-              {conversationId && (
-                <button
-                  onClick={() => { onClose(); navigate(`/messages/${conversationId}`); }}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all shadow-md"
-                  id="open-chat-btn"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Open Chat</span>
-                </button>
-              )}
+              <button
+                onClick={() => { onClose(); navigate('/connections'); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all shadow-md"
+                id="view-connections-btn"
+              >
+                <span>View Connections</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         );
 
       case 'already_connected':
+        const isPending = existingStatus === 'pending';
         return (
           <div className="text-center space-y-5 py-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
               <Users className="w-8 h-8 text-teal-500" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Already Connected</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                {isPending ? 'Invitation Pending ⏳' : 'Already Connected 💬'}
+              </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                You're already connected with {roommate.name}. No token deducted.
+                {isPending
+                  ? `You have already sent an invitation to ${roommate.name}. Chat will unlock as soon as they accept.`
+                  : `You're already connected with ${roommate.name}. No token deducted.`}
               </p>
             </div>
             <div className="flex gap-3">
               <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm">
                 Close
               </button>
-              {conversationId && (
+              {isPending ? (
+                <button
+                  onClick={() => { onClose(); navigate('/connections'); }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm shadow-md"
+                >
+                  <span>View Connections</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : conversationId ? (
                 <button
                   onClick={() => { onClose(); navigate(`/messages/${conversationId}`); }}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm shadow-md"
@@ -249,7 +278,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
                   <MessageSquare className="w-4 h-4" />
                   <span>Go to Chat</span>
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         );

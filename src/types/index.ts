@@ -236,7 +236,7 @@ export interface RoommateConnection {
   id: string;
   initiator_id: string;
   recipient_id: string;
-  status: 'active' | 'blocked';
+  status: 'pending' | 'accepted' | 'active' | 'declined' | 'blocked';
   created_at: string;
 }
 

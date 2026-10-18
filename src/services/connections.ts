@@ -89,19 +89,70 @@ export async function checkExistingConnection(
 }
 
 /**
- * Gets all connections for the current user.
+ * Gets all connections for the current user (active, accepted, and pending).
  */
 export async function getUserConnections(userId: string): Promise<RoommateConnection[]> {
   if (!isSupabaseConfigured) return [];
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('roommate_connections')
     .select('*')
     .or(`initiator_id.eq.${userId},recipient_id.eq.${userId}`)
-    .eq('status', 'active')
+    .in('status', ['pending', 'accepted', 'active'])
     .order('created_at', { ascending: false });
 
+  if (error) {
+    console.error('[Connection] Error fetching user connections:', error);
+    return [];
+  }
+
   return (data as RoommateConnection[]) || [];
+}
+
+/**
+ * Responds to a pending connection invitation (accept or decline).
+ */
+export async function respondToInvitation(
+  connectionId: string,
+  status: 'accepted' | 'declined'
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'backend_not_configured' };
+
+  // First try the secure stored procedure
+  const { data: rpcData, error: rpcError } = await supabase.rpc('respond_to_connection_invitation', {
+    p_connection_id: connectionId,
+    p_status: status
+  });
+
+  if (!rpcError && rpcData?.success) {
+    return { success: true };
+  }
+
+  // Fallback to direct table update if RPC is not yet registered in remote DB
+  const { error: updateError } = await supabase
+    .from('roommate_connections')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', connectionId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Accepts a connection invitation.
+ */
+export async function acceptConnection(connectionId: string): Promise<{ success: boolean; error?: string }> {
+  return respondToInvitation(connectionId, 'accepted');
+}
+
+/**
+ * Declines a connection invitation.
+ */
+export async function declineConnection(connectionId: string): Promise<{ success: boolean; error?: string }> {
+  return respondToInvitation(connectionId, 'declined');
 }
 
 /**

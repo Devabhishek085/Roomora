@@ -16,9 +16,31 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ─── Email transporter (Gmail or custom SMTP) ──────────────────────────────
+const GMAIL_USER = process.env.GMAIL_USER || process.env.SMTP_USER;
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASSWORD;
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 465;
+const SMTP_SECURE = process.env.SMTP_SECURE !== 'false';
+
+let mailTransporter = null;
+if (GMAIL_USER && GMAIL_APP_PASSWORD) {
+  mailTransporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
 
 // ─── Validate required env vars ────────────────────────────────────────────
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -620,68 +642,101 @@ app.post('/api/aadhaar/verify', requireAuth, async (req, res) => {
  */
 app.post('/api/notifications/connection-request', async (req, res) => {
   try {
-    const { recipientId, initiatorName, initiatorOccupation, initiatorCity } = req.body;
-    if (!recipientId) {
-      return res.status(400).json({ error: 'recipientId is required' });
+    const { recipientId, recipientEmail: directEmail, initiatorName, initiatorOccupation, initiatorCity } = req.body;
+    if (!recipientId && !directEmail) {
+      return res.status(400).json({ error: 'recipientId or recipientEmail is required' });
     }
 
-    let recipientEmail = null;
+    let recipientEmail = directEmail || null;
     let recipientName = 'Roommate';
 
-    try {
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(recipientId);
-      if (!userError && userData?.user?.email) {
-        recipientEmail = userData.user.email;
-        recipientName = userData.user.user_metadata?.full_name || userData.user.user_metadata?.name || 'there';
-      }
-    } catch (e) {
-      console.warn('[Notifications] Could not fetch user from auth admin:', e.message);
-    }
+    // 1. Try finding email via Supabase admin auth or profiles table if not provided directly
+    if (!recipientEmail && recipientId) {
+      try {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, display_name')
+          .eq('id', recipientId)
+          .single();
 
-    if (!recipientEmail) {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('display_name').eq('id', recipientId).single();
-      if (profile?.display_name) recipientName = profile.display_name;
+        if (profile?.email) {
+          recipientEmail = profile.email;
+          if (profile.display_name) recipientName = profile.display_name;
+        }
+      } catch (profileErr) {
+        console.warn('[Notifications] Could not fetch profile:', profileErr.message);
+      }
+
+      if (!recipientEmail) {
+        try {
+          const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(recipientId);
+          if (!userError && userData?.user?.email) {
+            recipientEmail = userData.user.email;
+            recipientName = userData.user.user_metadata?.full_name || userData.user.user_metadata?.name || recipientName;
+          }
+        } catch (authErr) {
+          console.warn('[Notifications] Could not fetch user from auth admin:', authErr.message);
+        }
+      }
     }
 
     console.log(`[Notifications] Connection request to ${recipientEmail || recipientId} from ${initiatorName || 'someone'}`);
 
-    if (process.env.RESEND_API_KEY && recipientEmail) {
-      const emailHtml = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
-          <div style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); padding: 32px 24px; text-align: center;">
-            <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px;">Roomora</h1>
-            <p style="color: #ccfbf1; font-size: 14px; margin: 0; font-weight: 500;">Smart Roommate Finding Platform</p>
-          </div>
-          <div style="padding: 32px 28px;">
-            <h2 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 16px 0;">New Connection Invitation! 🤝</h2>
-            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
-              Hi <strong>${recipientName}</strong>,
-            </p>
-            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
-              <strong>${initiatorName || 'A user'}</strong> (${[initiatorOccupation, initiatorCity].filter(Boolean).join(' • ')}) wants to connect with you on Roomora!
-            </p>
-            <div style="background: #f8fafc; border-radius: 12px; padding: 18px 20px; border-left: 4px solid #14b8a6; margin-bottom: 24px;">
-              <p style="color: #334155; font-size: 14px; margin: 0; font-weight: 500;">
-                🔒 For mutual safety and privacy, you must accept their connection invitation before chatting begins.
-              </p>
-            </div>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${process.env.FRONTEND_ORIGIN || 'https://roomora.vercel.app'}/connections" style="background: #14b8a6; color: #022c22; font-weight: 700; font-size: 15px; text-decoration: none; padding: 14px 32px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);">
-                Review & Accept Invitation
-              </a>
-            </div>
-            <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center; margin: 24px 0 0 0;">
-              If you didn't expect this invitation, you can decline it at any time on your Connections page.
-            </p>
-          </div>
-          <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #64748b; font-size: 12px; margin: 0;">
-              © ${new Date().getFullYear()} Roomora. All rights reserved.
-            </p>
-          </div>
+    const emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+        <div style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); padding: 32px 24px; text-align: center;">
+          <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px;">Roomora</h1>
+          <p style="color: #ccfbf1; font-size: 14px; margin: 0; font-weight: 500;">Smart Roommate Finding Platform</p>
         </div>
-      `;
+        <div style="padding: 32px 28px;">
+          <h2 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 16px 0;">New Connection Invitation! 🤝</h2>
+          <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+            Hi <strong>${recipientName}</strong>,
+          </p>
+          <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+            <strong>${initiatorName || 'A user'}</strong> (${[initiatorOccupation, initiatorCity].filter(Boolean).join(' • ')}) wants to connect with you on Roomora!
+          </p>
+          <div style="background: #f8fafc; border-radius: 12px; padding: 18px 20px; border-left: 4px solid #14b8a6; margin-bottom: 24px;">
+            <p style="color: #334155; font-size: 14px; margin: 0; font-weight: 500;">
+              🔒 For mutual safety and privacy, you must accept their connection invitation before chatting begins.
+            </p>
+          </div>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${process.env.FRONTEND_ORIGIN || 'https://roomora.vercel.app'}/connections" style="background: #14b8a6; color: #022c22; font-weight: 700; font-size: 15px; text-decoration: none; padding: 14px 32px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.25);">
+              Review & Accept Invitation
+            </a>
+          </div>
+          <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center; margin: 24px 0 0 0;">
+            If you didn't expect this invitation, you can decline it at any time on your Connections page.
+          </p>
+        </div>
+        <div style="background: #f1f5f9; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #64748b; font-size: 12px; margin: 0;">
+            © ${new Date().getFullYear()} Roomora. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `;
 
+    // 2. Delivery via Gmail / SMTP Transporter (Option 1)
+    if (mailTransporter && recipientEmail) {
+      try {
+        const info = await mailTransporter.sendMail({
+          from: `"Roomora" <${GMAIL_USER}>`,
+          to: recipientEmail,
+          subject: `🤝 New Roommate Connection Request from ${initiatorName || 'someone'} on Roomora`,
+          html: emailHtml,
+        });
+
+        console.log(`[Notifications] ✅ Email sent via Gmail/SMTP to ${recipientEmail} (ID: ${info.messageId})`);
+        return res.json({ success: true, sent: true, provider: 'gmail_smtp', messageId: info.messageId });
+      } catch (mailErr) {
+        console.error('[Notifications] Gmail/SMTP error:', mailErr);
+      }
+    }
+
+    // 3. Fallback: Delivery via Resend API if configured
+    if (process.env.RESEND_API_KEY && recipientEmail) {
       try {
         const resendRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -698,7 +753,7 @@ app.post('/api/notifications/connection-request', async (req, res) => {
         });
 
         const resendData = await resendRes.json();
-        return res.json({ success: true, sent: true, resendId: resendData.id });
+        return res.json({ success: true, sent: true, provider: 'resend', resendId: resendData.id });
       } catch (sendErr) {
         console.error('[Notifications] Resend API error:', sendErr);
       }
@@ -708,7 +763,7 @@ app.post('/api/notifications/connection-request', async (req, res) => {
       success: true,
       sent: false,
       simulated: true,
-      message: 'Email simulated (RESEND_API_KEY not configured or recipient email not found)'
+      message: 'Email simulated (Configure GMAIL_USER + GMAIL_APP_PASSWORD in sidecar/.env to send real emails)'
     });
   } catch (err) {
     console.error('[Notifications] Error sending connection notification:', err);
@@ -719,15 +774,17 @@ app.post('/api/notifications/connection-request', async (req, res) => {
 // ─── Start Server ─────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 Roomora Sidecar Server running on port ${PORT}`);
-  console.log(`   Razorpay:     ${RAZORPAY_CONFIGURED ? '✅ Configured' : '⚠️  Not configured'}`);
-  console.log(`   Verification: ${VERIFICATION_PROVIDER.toUpperCase()} provider`);
+  console.log(`   Email Service: ${mailTransporter ? `✅ Gmail/SMTP (${GMAIL_USER})` : (process.env.RESEND_API_KEY ? '✅ Resend API' : '⚠️  Not configured (see sidecar/.env)')}`);
+  console.log(`   Razorpay:      ${RAZORPAY_CONFIGURED ? '✅ Configured' : '⚠️  Not configured'}`);
+  console.log(`   Verification:  ${VERIFICATION_PROVIDER.toUpperCase()} provider`);
   if (VERIFICATION_PROVIDER === 'msg91') {
-    console.log(`   MSG91:        ${MSG91_CONFIGURED ? '✅ Configured (Phone OTP ready)' : '⚠️  Not configured — signup at msg91.com'}`);
+    console.log(`   MSG91:         ${MSG91_CONFIGURED ? '✅ Configured (Phone OTP ready)' : '⚠️  Not configured — signup at msg91.com'}`);
   } else if (VERIFICATION_PROVIDER === 'surepass') {
-    console.log(`   Surepass:     ${SUREPASS_CONFIGURED ? '✅ Configured (Aadhaar via licensed partner)' : '⚠️  Not configured — signup at surepass.io'}`);
+    console.log(`   Surepass:      ${SUREPASS_CONFIGURED ? '✅ Configured (Aadhaar via licensed partner)' : '⚠️  Not configured — signup at surepass.io'}`);
   } else {
-    console.log(`   UIDAI:        ${UIDAI_CONFIGURED ? '✅ Configured' : '⚠️  Requires formal onboarding at developer.uidai.gov.in'}`);
+    console.log(`   UIDAI:         ${UIDAI_CONFIGURED ? '✅ Configured' : '⚠️  Requires formal onboarding at developer.uidai.gov.in'}`);
   }
-  console.log(`   Supabase:     ${!missing.includes('SUPABASE_URL') ? '✅ Configured' : '⚠️  Not configured'}`);
-  console.log(`\n   Health check: http://localhost:${PORT}/health\n`);
+  console.log(`   Supabase:      ${!missing.includes('SUPABASE_URL') ? '✅ Configured' : '⚠️  Not configured'}`);
+  console.log(`\n   Health check:  http://localhost:${PORT}/health\n`);
 });
+

@@ -53,11 +53,13 @@ export async function sendConnectionInvitationEmail(
 
     if (response.ok) {
       const data = await response.json();
-      console.log('[Notification] Sent via sidecar:', data);
-      return { success: true };
+      console.log('[Notification] Sidecar response:', data);
+      if (data.sent) {
+        return { success: true };
+      }
     }
   } catch {
-    // Sidecar is offline, proceed to direct client delivery or logging
+    // Sidecar is offline, proceed to fallback delivery or logging
   }
 
   // 3. Direct delivery via Resend API if VITE_RESEND_API_KEY is configured

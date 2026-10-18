@@ -22,6 +22,9 @@ interface AuthState {
   resendSignupOtp: (email: string) => Promise<{ error: string | null }>;
   verifyEmailOtp: (email: string, token: string, password?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<{ error: string | null }>;
+  verifyPasswordResetOtp: (email: string, token: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
   refreshTokenBalance: () => Promise<void>;
   updateProfile: (updates: Partial<DbProfile>) => Promise<{ error: string | null }>;
@@ -275,6 +278,101 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       isLoading: false,
       error: null
     });
+  },
+
+  sendPasswordResetEmail: async (email) => {
+    if (!isSupabaseConfigured) {
+      return { error: 'Backend not configured. Please set up Supabase credentials.' };
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: redirectUrl
+      });
+
+      if (error) {
+        set({ error: error.message, isLoading: false });
+        return { error: error.message };
+      }
+
+      set({ isLoading: false });
+      return { error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send reset email';
+      set({ error: msg, isLoading: false });
+      return { error: msg };
+    }
+  },
+
+  verifyPasswordResetOtp: async (email, token) => {
+    if (!isSupabaseConfigured) {
+      return { error: 'Backend not configured. Please set up Supabase credentials.' };
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      let { data, error } = await supabase.auth.verifyOtp({
+        email: email.toLowerCase().trim(),
+        token: token.trim(),
+        type: 'recovery'
+      });
+
+      if (error) {
+        const fallback = await supabase.auth.verifyOtp({
+          email: email.toLowerCase().trim(),
+          token: token.trim(),
+          type: 'email'
+        });
+        if (!fallback.error) {
+          data = fallback.data;
+          error = null;
+        }
+      }
+
+      if (error) {
+        set({ error: error.message, isLoading: false });
+        return { error: error.message };
+      }
+
+      if (data.user) {
+        set({ user: data.user, session: data.session });
+        await get().refreshProfile();
+      }
+
+      set({ isLoading: false });
+      return { error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'OTP verification failed';
+      set({ error: msg, isLoading: false });
+      return { error: msg };
+    }
+  },
+
+  updatePassword: async (password) => {
+    if (!isSupabaseConfigured) {
+      return { error: 'Backend not configured. Please set up Supabase credentials.' };
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        set({ error: error.message, isLoading: false });
+        return { error: error.message };
+      }
+
+      set({ isLoading: false });
+      return { error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update password';
+      set({ error: msg, isLoading: false });
+      return { error: msg };
+    }
   },
 
   refreshProfile: async () => {

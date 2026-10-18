@@ -105,6 +105,7 @@ export interface UserOnboardingProfile {
 /** Database-backed profile (maps to public.profiles table) */
 export interface DbProfile {
   id: string;
+  email?: string | null;
   display_name: string;
   avatar_url: string | null;
   age: number | null;

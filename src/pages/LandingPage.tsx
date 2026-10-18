@@ -24,6 +24,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { generateDemoListings } from '../services/listings-generator';
 import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
+import { RoommateProfileModal } from '../components/RoommateProfileModal';
+import { ConnectModal } from '../components/ConnectModal';
 import type { RoommateProfile } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -33,6 +35,8 @@ export const LandingPage: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [budgetFilter, setBudgetFilter] = useState<number>(12000);
   const [realProfiles, setRealProfiles] = useState<RoommateProfile[]>([]);
+  const [selectedRoommate, setSelectedRoommate] = useState<{ roommate: RoommateProfile; report: any } | null>(null);
+  const [connectRoommate, setConnectRoommate] = useState<RoommateProfile | null>(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -220,21 +224,28 @@ export const LandingPage: React.FC = () => {
               ) : (
                 topMatches.map(({ roommate, compat }) => (
                   <div key={roommate.id}
-                    className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-3 hover:bg-white/15 transition-colors">
+                    onClick={() => setSelectedRoommate({ roommate, report: compat })}
+                    className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-3 hover:bg-white/15 transition-all cursor-pointer group"
+                    title="Click to view roommate profile and room photos">
                     <div className="flex items-center gap-3">
                       <img src={roommate.avatarUrl} alt={roommate.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-teal-400/40" />
+                        className="w-12 h-12 rounded-xl object-cover border border-teal-400/40 shrink-0" />
                       <div>
-                        <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <h4 className="text-sm font-bold text-white flex items-center gap-1.5 group-hover:text-teal-300 transition-colors">
                           {roommate.name}
                           <span className="text-[10px] text-teal-300 bg-teal-950/60 px-1.5 py-0.5 rounded">{roommate.age}y</span>
+                          {roommate.flatImages && roommate.flatImages.length > 0 && (
+                            <span className="text-[10px] text-teal-300 bg-teal-900/60 px-1.5 py-0.5 rounded font-bold">
+                              {roommate.flatImages.length} photos
+                            </span>
+                          )}
                         </h4>
                         <p className="text-xs text-indigo-200 line-clamp-1">{roommate.occupation} • {roommate.sleepSchedule}</p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-lg font-black text-teal-300 font-heading">{compat.score}%</div>
-                      <span className="text-[10px] text-indigo-200">Match</span>
+                      <span className="text-[10px] text-indigo-200 group-hover:underline">View &rarr;</span>
                     </div>
                   </div>
                 ))
@@ -423,6 +434,20 @@ export const LandingPage: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* Roommate Profile & Room Photos Pop-up Modal */}
+      <RoommateProfileModal
+        roommate={selectedRoommate?.roommate || null}
+        report={selectedRoommate?.report || null}
+        onClose={() => setSelectedRoommate(null)}
+        onConnect={(rm) => setConnectRoommate(rm)}
+      />
+
+      {/* Connect Modal */}
+      <ConnectModal
+        roommate={connectRoommate}
+        onClose={() => setConnectRoommate(null)}
+      />
     </div>
   );
 };

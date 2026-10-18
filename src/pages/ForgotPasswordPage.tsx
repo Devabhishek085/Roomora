@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, KeyRound, ShieldCheck, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, KeyRound, ShieldCheck, RefreshCw, CheckCircle2, MailCheck, ExternalLink } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { AnimatedRoomoraLogo } from '../components/AnimatedRoomoraLogo';
 
-type RecoveryStep = 'email' | 'verify' | 'new_password' | 'success';
+type RecoveryStep = 'email' | 'link_sent' | 'new_password' | 'success';
 
 export const ForgotPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,27 +15,74 @@ export const ForgotPasswordPage: React.FC = () => {
   const [step, setStep] = useState<RecoveryStep>('email');
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [statusNote, setStatusNote] = useState<string | null>(null);
+  const [isVerifyingLink, setIsVerifyingLink] = useState(false);
 
-  // Detect if user landed from an email reset link containing recovery tokens
+  // Detect and process recovery link / tokens / PKCE code
   useEffect(() => {
-    // Check hash for recovery access token from Supabase email link
-    const hash = window.location.hash;
-    if (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) {
-      setStep('new_password');
-      setStatusNote('Email verified via recovery link! Please set your new password.');
-    }
+    const handleAuthRedirect = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+      const hash = window.location.hash;
+      const isRecovery =
+        location.pathname === '/reset-password' ||
+        hash.includes('type=recovery') ||
+        hash.includes('access_token') ||
+        Boolean(code);
 
-    // Also check onAuthStateChange for PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      if (!isRecovery) return;
+
+      setIsVerifyingLink(true);
+
+      // 1. If Supabase sent PKCE code in query params (?code=...)
+      if (code) {
+        try {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (!exchangeError) {
+            setStep('new_password');
+            setStatusNote('Email verified via reset link! Enter your new password below.');
+            setIsVerifyingLink(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('[Recovery] PKCE code exchange note:', e);
+        }
+      }
+
+      // 2. If recovery hash token or type=recovery is present in hash
+      if (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) {
         setStep('new_password');
-        setStatusNote('Email verified! You can now set a new password.');
+        setStatusNote('Email verified! Enter your new password below.');
+        setIsVerifyingLink(false);
+        return;
+      }
+
+      // 3. If on /reset-password, check active session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setStep('new_password');
+        setStatusNote('Verified! Enter your new password below.');
+      }
+      setIsVerifyingLink(false);
+    };
+
+    handleAuthRedirect();
+
+    // Listen for auth state change
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (
+        event === 'PASSWORD_RECOVERY' ||
+        (event === 'SIGNED_IN' && (window.location.hash.includes('recovery') || window.location.search.includes('code')))
+      ) {
+        setStep('new_password');
+        setStatusNote('Email verified! Enter your new password below.');
+        setIsVerifyingLink(false);
       }
     });
 
@@ -66,18 +113,18 @@ export const ForgotPasswordPage: React.FC = () => {
     const result = await sendPasswordResetEmail(cleanEmail);
     if (result.error) {
       if (result.error.toLowerCase().includes('rate limit')) {
-        setError('Too many requests. Please wait a minute before requesting another code.');
+        setError('Too many requests. Please wait a minute before requesting another reset.');
       } else {
         setError(result.error);
       }
     } else {
-      setStep('verify');
+      setStep('link_sent');
       setResendCooldown(30);
-      setStatusNote(`We've sent a 6-digit recovery code and link to ${cleanEmail}.`);
+      setStatusNote(`Reset link sent to ${cleanEmail}.`);
     }
   };
 
-  // Resend code handler
+  // Resend reset link
   const handleResend = async () => {
     if (resendCooldown > 0 || isLoading) return;
     setError(null);
@@ -88,18 +135,18 @@ export const ForgotPasswordPage: React.FC = () => {
       setError(result.error);
     } else {
       setResendCooldown(30);
-      setStatusNote('A fresh recovery code has been sent to your email.');
+      setStatusNote('A fresh password reset link has been emailed.');
     }
   };
 
-  // Step 2: Verify recovery OTP
+  // Optional: Verify recovery OTP if user received numeric code
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     const cleanCode = otpCode.trim();
     if (!cleanCode || cleanCode.length < 6) {
-      return setError('Please enter the 6-digit recovery code sent to your email.');
+      return setError('Please enter the 6-digit recovery code.');
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -142,15 +189,15 @@ export const ForgotPasswordPage: React.FC = () => {
           </div>
           <h1 className="text-2xl font-extrabold font-heading text-slate-900 dark:text-white">
             {step === 'email' && 'Reset your password'}
-            {step === 'verify' && 'Enter recovery code'}
+            {step === 'link_sent' && 'Check your email'}
             {step === 'new_password' && 'Set new password'}
             {step === 'success' && 'Password updated!'}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {step === 'email' && "Enter your email and we'll send you an OTP code and reset link"}
-            {step === 'verify' && `Check your inbox at ${email || 'your email'}`}
+            {step === 'email' && "Enter your email and we'll send you a password reset link"}
+            {step === 'link_sent' && `We sent a reset link to ${email || 'your email'}`}
             {step === 'new_password' && 'Create a strong password for your Roomora account'}
-            {step === 'success' && 'Your account security has been updated successfully'}
+            {step === 'success' && 'Your account password has been updated successfully'}
           </p>
         </div>
 
@@ -159,11 +206,18 @@ export const ForgotPasswordPage: React.FC = () => {
           {!isSupabaseConfigured && (
             <div className="mb-5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs">
               <strong className="block font-bold mb-1">⚠️ Demo Mode</strong>
-              Backend not configured. Configure Supabase credentials to enable live password reset.
+              Backend not configured. Configure Supabase credentials to enable password reset.
             </div>
           )}
 
-          {statusNote && step !== 'success' && (
+          {isVerifyingLink && (
+            <div className="text-center py-8 space-y-3">
+              <div className="animate-spin w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full mx-auto" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">Verifying your reset link...</p>
+            </div>
+          )}
+
+          {!isVerifyingLink && statusNote && step !== 'success' && (
             <div className="mb-5 p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 text-xs font-medium flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" />
               <span>{statusNote}</span>
@@ -171,7 +225,7 @@ export const ForgotPasswordPage: React.FC = () => {
           )}
 
           {/* STEP 1: Enter Email */}
-          {step === 'email' && (
+          {!isVerifyingLink && step === 'email' && (
             <form onSubmit={handleSendEmail} className="space-y-5" id="forgot-password-form">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="reset-email">
@@ -208,7 +262,7 @@ export const ForgotPasswordPage: React.FC = () => {
                   <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
                 ) : (
                   <>
-                    <span>Send Recovery Code</span>
+                    <span>Send Reset Link</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -226,78 +280,101 @@ export const ForgotPasswordPage: React.FC = () => {
             </form>
           )}
 
-          {/* STEP 2: Verify Recovery Code (OTP) */}
-          {step === 'verify' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-5" id="verify-otp-form">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="otp-code">
-                  6-Digit Recovery Code
-                </label>
-                <div className="relative">
-                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    id="otp-code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={8}
-                    value={otpCode}
-                    onChange={e => setOtpCode(e.target.value)}
-                    placeholder="Enter 6-digit code"
-                    required
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-base tracking-widest font-mono outline-none focus:ring-2 focus:ring-teal-500 transition"
-                  />
+          {/* STEP 2: Link Sent — Check Email */}
+          {!isVerifyingLink && step === 'link_sent' && (
+            <div className="space-y-5">
+              <div className="text-center space-y-3 py-2">
+                <div className="w-16 h-16 mx-auto rounded-full bg-teal-100 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-700/60 flex items-center justify-center text-teal-600 dark:text-teal-400 shadow-sm">
+                  <MailCheck className="w-8 h-8" />
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  Reset link sent to your email
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  We've emailed a password reset link to <strong className="text-slate-900 dark:text-white">{email}</strong>.
+                  Click the <strong>Reset Password</strong> button inside the email to set your new password.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5">
+                <a
+                  href={`https://mail.google.com/mail/u/0/#search/from%3A(Roomora+OR+Supabase)`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95"
+                >
+                  <span>Open Gmail</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+
+                <div className="flex items-center justify-between pt-1">
                   <button
                     type="button"
                     onClick={() => setStep('email')}
-                    className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-semibold"
+                    className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-semibold"
                   >
                     Change email
                   </button>
+
                   <button
                     type="button"
                     disabled={resendCooldown > 0 || isLoading}
                     onClick={handleResend}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3 h-3 ${resendCooldown > 0 ? '' : 'hover:rotate-180 transition-transform'}`} />
-                    <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}</span>
+                    <RefreshCw className={`w-3.5 h-3.5 ${resendCooldown > 0 ? '' : 'hover:rotate-180 transition-transform'}`} />
+                    <span>{resendCooldown > 0 ? `Resend link in ${resendCooldown}s` : 'Resend Link'}</span>
                   </button>
                 </div>
               </div>
 
-              {error && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-medium">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isLoading || otpCode.trim().length < 6}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all shadow-md active:scale-95"
-                id="verify-code-btn"
-              >
-                {isLoading ? (
-                  <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
+              {/* Optional Collapsible: Received 6-digit code? */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                {!showOtpInput ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowOtpInput(true)}
+                    className="w-full text-center text-xs text-teal-600 dark:text-teal-400 hover:underline font-bold"
+                  >
+                    Received a 6-digit OTP code instead?
+                  </button>
                 ) : (
-                  <>
-                    <span>Verify Code</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+                  <form onSubmit={handleVerifyOtp} className="space-y-3 animate-in fade-in duration-200">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300" htmlFor="recovery-code-input">
+                      Enter 6-digit OTP code
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        id="recovery-code-input"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value)}
+                        placeholder="123456"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-mono tracking-widest outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                    {error && (
+                      <p className="text-xs text-rose-600 font-medium">{error}</p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isLoading || otpCode.trim().length < 6}
+                      className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-bold text-xs transition-all hover:opacity-90 disabled:opacity-40"
+                    >
+                      Verify Code
+                    </button>
+                  </form>
                 )}
-              </button>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 text-center">
-                Tip: You can also click the direct reset link sent to your email to continue on any device.
               </div>
-            </form>
+            </div>
           )}
 
           {/* STEP 3: Set New Password */}
-          {step === 'new_password' && (
+          {!isVerifyingLink && step === 'new_password' && (
             <form onSubmit={handleUpdatePassword} className="space-y-4" id="new-password-form">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="new-password">
@@ -361,7 +438,7 @@ export const ForgotPasswordPage: React.FC = () => {
                   <span className="animate-spin w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full" />
                 ) : (
                   <>
-                    <span>Save New Password</span>
+                    <span>Save New Password & Sign In</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -370,7 +447,7 @@ export const ForgotPasswordPage: React.FC = () => {
           )}
 
           {/* STEP 4: Success Screen */}
-          {step === 'success' && (
+          {!isVerifyingLink && step === 'success' && (
             <div className="text-center space-y-5 py-2">
               <div className="w-16 h-16 mx-auto rounded-full bg-teal-100 dark:bg-teal-950/70 border border-teal-300 dark:border-teal-700/60 flex items-center justify-center text-teal-600 dark:text-teal-400 shadow-sm">
                 <CheckCircle2 className="w-9 h-9" />

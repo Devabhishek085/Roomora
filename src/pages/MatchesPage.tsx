@@ -34,14 +34,14 @@ const MATCH_CITY_PILLS = [
 ];
 
 export const MatchesPage: React.FC = () => {
-  const { userProfile, selectedLocation, radiusKm, setRadiusKm } = useAppStore();
+  const { userProfile, selectedLocation } = useAppStore();
   const { user, tokenBalance } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [minScore, setMinScore] = useState<number>(40);
   const [selectedGender, setSelectedGender] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
-  const [sortBy, setSortBy] = useState<'distance' | 'score' | 'budget_asc' | 'budget_desc' | 'age'>('distance');
+  const [sortBy, setSortBy] = useState<'score' | 'budget_asc' | 'budget_desc' | 'age'>('score');
   const [cityFilter, setCityFilter] = useState<string>(searchParams.get('city') || '');
   const [maxBudget, setMaxBudget] = useState<number>(20000);
 
@@ -57,9 +57,8 @@ export const MatchesPage: React.FC = () => {
   }, [searchParams]);
 
   const handleResetFilters = () => {
-    setRadiusKm(5);
     setMaxBudget(20000);
-    setSortBy('distance');
+    setSortBy('score');
     setMinScore(40);
     setSelectedGender('All');
     setSearchQuery('');
@@ -162,7 +161,7 @@ export const MatchesPage: React.FC = () => {
 
     // Sort
     result.sort((a, b) => {
-      if (sortBy === 'score' || sortBy === 'distance') return b.report.score - a.report.score;
+      if (sortBy === 'score') return b.report.score - a.report.score;
       if (sortBy === 'budget_asc') return a.roommate.budgetMin - b.roommate.budgetMin;
       if (sortBy === 'budget_desc') return b.roommate.budgetMax - a.roommate.budgetMax;
       if (sortBy === 'age') return a.roommate.age - b.roommate.age;
@@ -245,7 +244,6 @@ export const MatchesPage: React.FC = () => {
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="bg-slate-100 dark:bg-slate-800/90 border-none rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200 font-semibold outline-none cursor-pointer"
                 >
-                  <option value="distance">Distance: Nearest First</option>
                   <option value="score">Compatibility: Top Match</option>
                   <option value="budget_asc">Rent: Low to High</option>
                   <option value="budget_desc">Rent: High to Low</option>
@@ -255,50 +253,25 @@ export const MatchesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Sliders Grid: Radius & Max Rent */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Radius Slider Card */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
-              <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                <span>Search Radius</span>
-                <span className="text-teal-600 dark:text-teal-400 font-black">{radiusKm || 5} km</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="12"
-                step="1"
-                value={radiusKm || 5}
-                onChange={(e) => setRadiusKm(Number(e.target.value))}
-                className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
-                <span>1 km (walking)</span>
-                <span>6 km</span>
-                <span>12 km (transit)</span>
-              </div>
+          {/* Max Budget Slider Card */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+              <span>Max Budget</span>
+              <span className="text-teal-600 dark:text-teal-400 font-black">₹{maxBudget.toLocaleString()}/mo</span>
             </div>
-
-            {/* Max Budget Slider Card */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800/80">
-              <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                <span>Max Budget</span>
-                <span className="text-teal-600 dark:text-teal-400 font-black">₹{maxBudget.toLocaleString()}/mo</span>
-              </div>
-              <input
-                type="range"
-                min="5000"
-                max="26000"
-                step="500"
-                value={maxBudget}
-                onChange={(e) => setMaxBudget(Number(e.target.value))}
-                className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
-                <span>₹5,000</span>
-                <span>₹15,000</span>
-                <span>₹26,000</span>
-              </div>
+            <input
+              type="range"
+              min="5000"
+              max="26000"
+              step="500"
+              value={maxBudget}
+              onChange={(e) => setMaxBudget(Number(e.target.value))}
+              className="w-full accent-teal-500 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
+              <span>₹5,000</span>
+              <span>₹15,000</span>
+              <span>₹26,000</span>
             </div>
           </div>
 

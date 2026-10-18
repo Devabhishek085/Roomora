@@ -437,18 +437,22 @@ export const MatchesPage: React.FC = () => {
       </div>
 
       {/* Roommate Profile & Room Photos Pop-up Modal */}
-      <RoommateProfileModal
-        roommate={inspectRoommate?.roommate || null}
-        report={inspectRoommate?.report || null}
-        onClose={() => setInspectRoommate(null)}
-        onConnect={(rm) => setConnectRoommate(rm)}
-      />
+      {inspectRoommate && (
+        <RoommateProfileModal
+          roommate={inspectRoommate.roommate}
+          report={inspectRoommate.report}
+          onClose={() => setInspectRoommate(null)}
+          onConnect={(rm) => setConnectRoommate(rm)}
+        />
+      )}
 
       {/* Connect Modal */}
-      <ConnectModal
-        roommate={connectRoommate}
-        onClose={() => setConnectRoommate(null)}
-      />
+      {connectRoommate && (
+        <ConnectModal
+          roommate={connectRoommate}
+          onClose={() => setConnectRoommate(null)}
+        />
+      )}
     </div>
   );
 };

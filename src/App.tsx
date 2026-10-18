@@ -41,6 +41,11 @@ function ScrollToTop() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    document.body.style.overflow = '';
+    const lenis = (window as any).__lenis;
+    if (lenis && typeof lenis.start === 'function') {
+      lenis.start();
+    }
   }, [pathname]);
 
   return null;

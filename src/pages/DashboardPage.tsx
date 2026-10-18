@@ -841,18 +841,22 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* Roommate Profile & Room Photos Pop-up Modal */}
-      <RoommateProfileModal
-        roommate={selectedRoommate}
-        report={selectedRoommate ? calculateCompatibility(userProfile, selectedRoommate) : null}
-        onClose={() => setSelectedRoommate(null)}
-        onConnect={(rm) => setConnectRoommate(rm)}
-      />
+      {selectedRoommate && (
+        <RoommateProfileModal
+          roommate={selectedRoommate}
+          report={selectedRoommate ? calculateCompatibility(userProfile, selectedRoommate) : null}
+          onClose={() => setSelectedRoommate(null)}
+          onConnect={(rm) => setConnectRoommate(rm)}
+        />
+      )}
 
       {/* Connect Modal */}
-      <ConnectModal
-        roommate={connectRoommate}
-        onClose={() => setConnectRoommate(null)}
-      />
+      {connectRoommate && (
+        <ConnectModal
+          roommate={connectRoommate}
+          onClose={() => setConnectRoommate(null)}
+        />
+      )}
     </div>
   );
 };

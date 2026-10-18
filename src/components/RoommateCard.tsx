@@ -6,7 +6,8 @@ import { useAppStore } from '../store/useAppStore';
 interface RoommateCardProps {
   roommate: RoommateProfile;
   report: CompatibilityReport;
-  onWhyMatch: (roommate: RoommateProfile, report: CompatibilityReport) => void;
+  onWhyMatch?: (roommate: RoommateProfile, report: CompatibilityReport) => void;
+  onViewProfile?: (roommate: RoommateProfile, report: CompatibilityReport) => void;
   onConnect: (roommate: RoommateProfile) => void;
 }
 
@@ -14,6 +15,7 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
   roommate,
   report,
   onWhyMatch,
+  onViewProfile,
   onConnect
 }) => {
   const { savedRoommates, toggleSaveRoommate } = useAppStore();
@@ -23,6 +25,14 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
   const [glarePosition, setGlarePosition] = useState({ x: 50, y: 50, opacity: 0 });
 
   const isSaved = savedRoommates.includes(roommate.id);
+
+  const handleOpenProfile = () => {
+    if (onViewProfile) {
+      onViewProfile(roommate, report);
+    } else if (onWhyMatch) {
+      onWhyMatch(roommate, report);
+    }
+  };
 
   // 3D Perspective Tilt on Mouse Move
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -68,13 +78,15 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
     >
       <div
         ref={cardRef}
+        onClick={handleOpenProfile}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{
           transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
           transition: rotateX === 0 ? 'transform 0.5s ease' : 'none'
         }}
-        className="relative h-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
+        className="relative h-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 flex flex-col justify-between overflow-hidden group cursor-pointer"
+        title="Click to view roommate profile and room photos"
       >
         {/* Dynamic Light Glare overlay */}
         <div
@@ -103,7 +115,10 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
 
             {/* Heart Save button */}
             <button
-              onClick={() => toggleSaveRoommate(roommate.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSaveRoommate(roommate.id);
+              }}
               className="absolute top-3 right-3 p-2 rounded-full bg-white/90 dark:bg-slate-900/90 shadow-md hover:scale-110 active:scale-95 transition-all z-10"
               title="Save roommate"
             >
@@ -116,7 +131,7 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onWhyMatch(roommate, report);
+                  handleOpenProfile();
                 }}
                 className="absolute top-3 right-12 flex items-center gap-1 px-2.5 py-1 rounded-full backdrop-blur-md bg-teal-950/85 border border-teal-500/40 text-teal-300 hover:text-white hover:bg-teal-900 text-[10px] font-bold shadow-md transition-all active:scale-95 z-10"
                 title="View flat and room photos"
@@ -150,7 +165,7 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
         <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
-              <h3 className="text-lg font-bold font-heading text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+              <h3 className="text-lg font-bold font-heading text-slate-900 dark:text-white truncate flex items-center gap-1.5 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                 {roommate.name}
                 {roommate.isAadhaarVerified && (
                   <span title="Aadhaar Verified" className="inline-flex items-center">
@@ -194,14 +209,17 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
             {roommate.flatImages && roommate.flatImages.length > 0 && (
               <button
                 type="button"
-                onClick={() => onWhyMatch(roommate, report)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenProfile();
+                }}
                 className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/60 text-teal-700 dark:text-teal-300 text-[11px] font-bold hover:bg-teal-100 dark:hover:bg-teal-900/40 transition mt-2.5"
               >
                 <span className="flex items-center gap-1.5">
                   <Home className="w-3.5 h-3.5 text-teal-500" />
                   <span>{roommate.flatImages.length} Flat &amp; Room Pictures</span>
                 </span>
-                <span className="text-[10px] font-semibold underline">View &rarr;</span>
+                <span className="text-[10px] font-semibold underline">View Photos &rarr;</span>
               </button>
             )}
           </div>
@@ -210,16 +228,23 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
             <button
               type="button"
-              onClick={() => onWhyMatch(roommate, report)}
-              className="flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenProfile();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all"
+              title="View about roommate and room photos"
             >
-              <Info className="w-3.5 h-3.5" />
-              <span>Why this match?</span>
+              <Info className="w-3.5 h-3.5 text-teal-500" />
+              <span>About Roommate</span>
             </button>
 
             <button
               type="button"
-              onClick={() => onConnect(roommate)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onConnect(roommate);
+              }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition-all shadow-sm active:scale-95"
             >
               <MessageSquare className="w-3.5 h-3.5" />

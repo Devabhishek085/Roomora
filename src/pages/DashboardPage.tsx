@@ -24,7 +24,10 @@ import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { generateDemoListings } from '../services/listings-generator';
 import { fetchProfileById, dbProfileToRoommateProfile } from '../services/profiles';
+import { calculateCompatibility } from '../services/compatibility';
 import { AadhaarVerificationCard } from '../components/AadhaarVerificationCard';
+import { RoommateProfileModal } from '../components/RoommateProfileModal';
+import { ConnectModal } from '../components/ConnectModal';
 import type { RoommateProfile } from '../types';
 
 export const DashboardPage: React.FC = () => {
@@ -32,6 +35,8 @@ export const DashboardPage: React.FC = () => {
   const photoInputRef = React.useRef<HTMLInputElement | null>(null);
   const flatPhotosInputRef = React.useRef<HTMLInputElement | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [selectedRoommate, setSelectedRoommate] = useState<RoommateProfile | null>(null);
+  const [connectRoommate, setConnectRoommate] = useState<RoommateProfile | null>(null);
   const { 
     userProfile, 
     updateUserProfile, 
@@ -622,24 +627,38 @@ export const DashboardPage: React.FC = () => {
                   {savedRoommatesList.map((r) => (
                     <div
                       key={r.id}
-                      className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3"
+                      onClick={() => setSelectedRoommate(r)}
+                      className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 cursor-pointer hover:border-teal-500/50 hover:shadow-md transition-all group"
+                      title="Click to view roommate profile and room photos"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <img
                           src={r.avatarUrl}
                           alt={r.name}
-                          className="w-12 h-12 rounded-xl object-cover"
+                          className="w-12 h-12 rounded-xl object-cover shrink-0"
                         />
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">
-                            {r.name}
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors flex items-center gap-1.5">
+                            <span>{r.name}</span>
+                            {r.flatImages && r.flatImages.length > 0 && (
+                              <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 px-1.5 py-0.2 rounded shrink-0">
+                                {r.flatImages.length} photos
+                              </span>
+                            )}
                           </h4>
-                          <p className="text-[11px] text-slate-500">{r.occupation}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{r.occupation}</p>
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold underline mt-0.5 block">
+                            View Profile &rarr;
+                          </span>
                         </div>
                       </div>
                       <button
-                        onClick={() => toggleSaveRoommate(r.id)}
-                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSaveRoommate(r.id);
+                        }}
+                        className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 shrink-0"
+                        title="Remove from saved"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -820,6 +839,20 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Roommate Profile & Room Photos Pop-up Modal */}
+      <RoommateProfileModal
+        roommate={selectedRoommate}
+        report={selectedRoommate ? calculateCompatibility(userProfile, selectedRoommate) : null}
+        onClose={() => setSelectedRoommate(null)}
+        onConnect={(rm) => setConnectRoommate(rm)}
+      />
+
+      {/* Connect Modal */}
+      <ConnectModal
+        roommate={connectRoommate}
+        onClose={() => setConnectRoommate(null)}
+      />
     </div>
   );
 };

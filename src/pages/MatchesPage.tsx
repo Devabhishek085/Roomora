@@ -19,7 +19,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
 import { RoommateCard } from '../components/RoommateCard';
-import { WhyMatchModal } from '../components/WhyMatchModal';
+import { RoommateProfileModal } from '../components/RoommateProfileModal';
 import { ConnectModal } from '../components/ConnectModal';
 import { isSupabaseConfigured } from '../lib/supabase';
 import type { RoommateProfile, CompatibilityReport } from '../types';
@@ -402,6 +402,7 @@ export const MatchesPage: React.FC = () => {
                 key={roommate.id}
                 roommate={roommate}
                 report={report}
+                onViewProfile={(rm, rep) => setInspectRoommate({ roommate: rm, report: rep })}
                 onWhyMatch={(rm, rep) => setInspectRoommate({ roommate: rm, report: rep })}
                 onConnect={(rm) => setConnectRoommate(rm)}
               />
@@ -435,11 +436,12 @@ export const MatchesPage: React.FC = () => {
         )}
       </div>
 
-      {/* Why This Match Modal */}
-      <WhyMatchModal
+      {/* Roommate Profile & Room Photos Pop-up Modal */}
+      <RoommateProfileModal
         roommate={inspectRoommate?.roommate || null}
         report={inspectRoommate?.report || null}
         onClose={() => setInspectRoommate(null)}
+        onConnect={(rm) => setConnectRoommate(rm)}
       />
 
       {/* Connect Modal */}

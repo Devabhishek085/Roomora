@@ -7,25 +7,28 @@
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)](https://vitejs.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-2.x-3ECF8E?logo=supabase)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?logo=tailwindcss)](https://tailwindcss.com/)
+[![Razorpay](https://img.shields.io/badge/Razorpay-Ready-0C2340?logo=razorpay)](https://razorpay.com/)
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Clone & install
+# 1. Clone & install dependencies
 git clone https://github.com/Devabhishek085/Roomora.git
 cd Roomora
 npm install
 
 # 2. Configure environment
 cp .env.example .env.local
-# → Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+# → Fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and VITE_RAZORPAY_KEY_ID
 
-# 3. Set up the database (run in Supabase SQL Editor)
-# → Run: supabase/migrations/001_initial_schema.sql
+# 3. Set up the database in Supabase SQL Editor
+# → Run in order:
+#   1. supabase/migrations/001_initial_schema.sql
+#   2. supabase/migrations/002_add_flat_images.sql
 
-# 4. Seed 20 demo profiles (optional)
+# 4. (Optional) Seed demo profiles for local testing
 VITE_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-demo-profiles.mjs
 
 # 5. Start frontend dev server
@@ -44,44 +47,49 @@ cd sidecar && npm install && npm run dev
 ```
 Roomora/
 ├── src/
-│   ├── pages/           # React pages (lazy-loaded)
-│   │   ├── LandingPage.tsx       ← Roommate-first hero, PG secondary
-│   │   ├── MatchesPage.tsx       ← DB + demo profiles, compatibility
-│   │   ├── RegisterPage.tsx      ← Auth: create account
+│   ├── pages/                   # React pages (lazy-loaded / routed)
+│   │   ├── LandingPage.tsx       ← Roommate-first hero, top matches preview, PG secondary
+│   │   ├── MatchesPage.tsx       ← Real roommate discovery, city filters, compatibility
+│   │   ├── RegisterPage.tsx      ← Auth: create account (Email + Password / OTP)
 │   │   ├── LoginPage.tsx         ← Auth: sign in
-│   │   ├── ConnectionsPage.tsx   ← Active connections list
+│   │   ├── ConnectionsPage.tsx   ← Active accepted connections list
 │   │   ├── MessagesPage.tsx      ← Real-time chat (Supabase Realtime)
-│   │   ├── SubscriptionPage.tsx  ← Razorpay plan selection
-│   │   ├── DashboardPage.tsx     ← Profile, saved, inquiries
-│   │   ├── OnboardingPage.tsx    ← 4-step lifestyle quiz
-│   │   ├── ExplorePage.tsx       ← PG map (Overpass API)
+│   │   ├── SubscriptionPage.tsx  ← Razorpay plan selection + sandbox simulation mode
+│   │   ├── DashboardPage.tsx     ← User profile, room photo manager, saved roommates
+│   │   ├── OnboardingPage.tsx    ← 4-step lifestyle quiz + flat photo upload
+│   │   ├── ExplorePage.tsx       ← Interactive map & PG discovery (Overpass API)
 │   │   ├── PropertyDetailsPage.tsx
 │   │   └── SafetyCenterPage.tsx
 │   ├── services/
-│   │   ├── profiles.ts           ← DB profile fetch + mapping
-│   │   ├── connections.ts        ← Token deduction, messaging, blocks
-│   │   ├── compatibility.ts      ← Weighted scoring engine + 20 demo profiles
-│   │   ├── aadhaar.ts            ← UIDAI integration boundary (mock + real)
-│   │   ├── subscriptions.ts      ← Plan configuration
-│   │   ├── listings-generator.ts ← Deterministic PG demo listings
-│   │   └── overpass.ts           ← POI discovery
+│   │   ├── profiles.ts           ← Real user DB fetch, filters, and mapping
+│   │   ├── connections.ts        ← Token deduction, messaging, blocks & reports
+│   │   ├── compatibility.ts      ← Transparent weighted scoring engine + demo data
+│   │   ├── aadhaar.ts            ← UIDAI integration boundary (Surepass adapter)
+│   │   ├── subscriptions.ts      ← Subscription plans configuration
+│   │   ├── listings-generator.ts ← Deterministic PG & flat demo listings
+│   │   └── overpass.ts           ← POI and local amenity discovery
 │   ├── store/
-│   │   ├── useAuthStore.ts       ← Supabase auth state (NEW)
-│   │   └── useAppStore.ts        ← UI state + localStorage persist
+│   │   ├── useAuthStore.ts       ← Supabase auth state, user profile, tokens
+│   │   └── useAppStore.ts        ← UI preferences, saved items, location state
 │   ├── components/
-│   │   ├── Navbar.tsx            ← Roommate-first nav + auth
-│   │   ├── ConnectModal.tsx      ← Token-gated connection flow
-│   │   ├── RoommateCard.tsx      ← Demo label + Aadhaar badge
-│   │   └── 3d/HeroScene.tsx      ← Three.js WebGL hero
+│   │   ├── Navbar.tsx            ← Roommate-first navigation & token balance
+│   │   ├── RoommateCard.tsx      ← 3D tilt interactive card with photo badges
+│   │   ├── RoommateProfileModal.tsx ← Pop-up profile, room photos gallery & lightbox
+│   │   ├── ConnectModal.tsx      ← Token-gated connection flow & chat launch
+│   │   ├── AadhaarVerificationCard.tsx ← In-app Aadhaar OTP identity verification
+│   │   ├── LocationSearchBar.tsx ← City & locality search with quick city pills
+│   │   └── 3d/HeroScene.tsx      ← Three.js WebGL hero animation
 │   ├── lib/
-│   │   └── supabase.ts           ← Supabase client (anon key only)
-│   └── types/index.ts            ← Full TypeScript types
+│   │   └── supabase.ts           ← Supabase client instance (anon key only)
+│   └── types/index.ts            ← Comprehensive TypeScript types
 ├── supabase/
-│   └── migrations/001_initial_schema.sql  ← Full DB schema + RLS
+│   ├── migrations/
+│   │   ├── 001_initial_schema.sql    ← Full database schema, RLS, triggers & RPCs
+│   │   └── 002_add_flat_images.sql   ← Flat & room photos array column
 ├── sidecar/
-│   └── index.js                  ← Express: Razorpay + UIDAI (server-only)
+│   └── index.js                  ← Express server: Razorpay & UIDAI webhooks
 ├── scripts/
-│   └── seed-demo-profiles.mjs   ← Seeds 20 labeled AI demo profiles
+│   └── seed-demo-profiles.mjs    ← Seeds 20 labeled AI demo profiles
 └── .env.example                  ← Environment variable template
 ```
 
@@ -90,75 +98,80 @@ Roomora/
 ## Features Implemented
 
 ### ✅ Authentication (Supabase Auth)
-- Email/password sign up & sign in
-- JWT session management with auto-refresh
-- PKCE flow
-- Password visibility toggle, form validation
-- Auto-creates profile + grants 10 free tokens on signup (database trigger)
+- Email/password sign-up & sign-in with JWT session management.
+- Magic link and email OTP verification fallback.
+- Auto-initializes profile and grants **10 free connection tokens** on registration via database trigger.
+- Password visibility toggle, live form validation, and active session caching.
 
-### ✅ Database (PostgreSQL + Supabase)
-- **14 tables**: profiles, token_balances, token_transactions, roommate_connections, conversations, messages, subscriptions, payment_transactions, aadhaar_verifications, saved_roommates, user_blocks, user_reports, audit_events
-- **Row-Level Security (RLS)** enforced on every table
-- **Atomic token deduction** via `deduct_connection_token()` stored procedure — prevents race conditions and double-spend
-- **Auto-profile creation trigger**: on signup → creates profile + grants 10 tokens + records subscription
+### ✅ Database & Migrations (PostgreSQL + Supabase)
+- **14 relational tables**: `profiles`, `token_balances`, `token_transactions`, `roommate_connections`, `conversations`, `messages`, `subscriptions`, `payment_transactions`, `aadhaar_verifications`, `saved_roommates`, `user_blocks`, `user_reports`, `audit_events`.
+- **Row-Level Security (RLS)** strictly enforced on all tables.
+- **Atomic token deduction** via `deduct_connection_token()` stored procedure to eliminate race conditions.
+- **Migration 002**: `flat_images TEXT[]` for multi-photo room and flat listings.
+
+### ✅ Room & Flat Photo Uploads with Interactive Gallery
+- Users can upload multiple room and flat pictures during onboarding and manage them inside the Dashboard.
+- **Interactive Lightbox**: Fullscreen modal view with previous/next navigation and zoom.
+- Photos appear directly on the roommate card (`X Photos` badge) and in the profile pop-up.
+
+### ✅ Roommate Profile Pop-up Modal (`RoommateProfileModal`)
+- Clicking any profile card opens a rich modal showing:
+  - User details (Age, Gender, Occupation, Institution, Aadhaar verification badge).
+  - High-resolution **Photos of Room / Flat** carousel with thumbnail preview.
+  - Detailed budget, move-in date, accommodation type, and room sharing preferences.
+  - Circadian sleep schedule, cleanliness rating, food habits, smoking/drinking, and noise tolerance.
+  - Hobbies and personal interests.
+  - Explainable compatibility breakdown and engine verdict.
+  - Direct **"Connect"** and **"Save Roommate"** action buttons.
 
 ### ✅ Token-Based Connection System
-- New users get **10 free connection tokens** (never credit card)
-- Each new connection costs **1 token**, atomically deducted server-side
-- Idempotency key prevents duplicate charges on double-click
-- Demo profiles clearly blocked from consuming tokens
-- Token balance visible in Navbar and MatchesPage
-- `ConnectModal` handles: token gate, demo guard, auth gate, already-connected, no-tokens → paywall
+- Every new user receives **10 free connection tokens** upon registration.
+- Each new connection request atomically deducts **1 token** from the balance.
+- Built-in idempotency keys prevent duplicate deductions.
+- `ConnectModal` handles token verification, demo profile protection, and subscription upgrade transitions.
 
-### ✅ Roommate-First Navigation
-- Homepage: Roommate matching is primary hero, PG discovery is secondary
-- Navbar order: Home → **Find Roommates** → Connections → PGs & Flats → Safety → Dashboard
-- Primary CTA: "Find My Roommate" (not "Find a Room")
-
-### ✅ Demo Profile Labeling
-- All 20 AI-generated profiles have `demoLabel: 'AI-generated demo profile'`
-- Every `RoommateCard` shows visible **AI Demo** amber badge
-- Demo profiles cannot receive real connections (blocked at DB function level)
-- `MatchesPage` shows real vs demo counts prominently
-- Seed script produces DiceBear avatars (no real faces)
+### ✅ Location Discovery & Clean Filtering
+- Location search with quick city filters for **Delhi NCR, Bengaluru, Mumbai, Pune, Hyderabad, Chennai, Kolkata**, and more.
+- Clean Max Budget slider and lifestyle filters without redundant radius controls.
+- Find Roommates feed strictly displays authentic registered user profiles.
 
 ### ✅ Real-time Messaging (Supabase Realtime)
-- `MessagesPage` subscribes to `postgres_changes` on `messages` table
-- Read receipts (✓ / ✓✓)
-- Block user / Report user actions
-- 2000-character limit enforced client + server
-- Messages only visible to connection participants (RLS)
+- Full end-to-end chat subscribing to `postgres_changes` on the `messages` table.
+- Message delivery indicators and read receipts (`✓` / `✓✓`).
+- User block and report mechanisms with audit logging.
+- RLS safeguards ensuring only connection participants can read or send messages.
 
-### ✅ Subscription Plans (Razorpay)
-- **Starter** – Free, 10 tokens
-- **Connect+** – ₹199/month, unlimited connections
-- **Premium** – ₹499/month, unlimited + featured placement
-- Sidecar server handles: order creation, HMAC signature verification, subscription activation
-- Webhook handler for payment.failed events
-- Payment never trusted from frontend — always server-verified
+### ✅ Subscription & Payments (Razorpay + Sandbox Simulation)
+- **Starter**: Free, 10 connection tokens.
+- **Connect+**: ₹199/month, unlimited connections.
+- **Premium**: ₹499/month, unlimited connections + featured placement.
+- **Client & Server Integration**: Dynamic Razorpay SDK loading, client-side test checkout, and sidecar webhook HMAC verification.
+- **Sandbox Simulation Mode**: Built-in test activation so evaluators and testers can try unlimited connections without payment gateway setup.
 
-### ⚠️ UIDAI Aadhaar Verification (Integration Boundary Defined)
-- `src/services/aadhaar.ts`: Full adapter pattern with clearly labeled mock mode
-- `sidecar/index.js`: Server-side endpoint stubs for `POST /api/aadhaar/initiate` and `/verify`
-- UIDAI credentials isolated server-side only — never exposed to browser
-- Mock mode: OTP `123456` works in development, produces `is_mock: true` records only
-- Production: requires formal UIDAI Developer Sandbox onboarding at https://developer.uidai.gov.in
-- No real Aadhaar numbers are ever stored
+### ✅ Identity Verification (Aadhaar / Surepass Adapter)
+- `src/services/aadhaar.ts` & `AadhaarVerificationCard.tsx` provide a verified identity flow.
+- Verified accounts receive the `✓ Aadhaar Verified` badge on cards and profiles.
+- Secure adapter pattern with mock OTP `123456` in development; real UIDAI / Surepass credentials isolated server-side.
 
 ---
 
 ## Compatibility Engine
 
-The weighted scoring algorithm is fully transparent — no black-box AI:
+The weighted compatibility engine is 100% transparent and explainable — no black-box algorithms:
 
 ```
 Score = Σ(CategoryScore × UserWeight) / Σ(Weights)
 
-Categories: Sleep Schedule, Cleanliness, Food Preference,
-            Guest Policy, Noise Tolerance, Smoking/Drinking
+Evaluated Categories:
+1. Circadian Sleep Schedule (Early Bird vs. Night Owl)
+2. Cleanliness & Chore Discipline (1 to 5 scale)
+3. Food Habits (Veg, Non-Veg, Vegan, Eggetarian)
+4. Guest Policy (Rarely, Weekends, Flexible)
+5. Noise Tolerance (Quiet, Moderate, Lively)
+6. Social & Living Habits (Smoking, Drinking, Privacy Needs)
 ```
 
-Hard constraints (budget, move-in date, gender policy) trigger early exclusion before weighted scoring.
+Hard constraints (budget limits, move-in timelines, and gender policies) trigger warnings before weighted scoring is calculated.
 
 ---
 
@@ -166,36 +179,45 @@ Hard constraints (budget, move-in date, gender policy) trigger early exclusion b
 
 | Layer | Implementation |
 |---|---|
-| **Token deduction** | Atomic PostgreSQL stored procedure (`SELECT ... FOR UPDATE`) |
-| **RLS** | All 14 tables — users can only read/write their own data |
-| **Auth** | Supabase PKCE flow, JWT verified server-side for sidecar endpoints |
-| **Payment** | Razorpay HMAC signature verified in sidecar — never frontend |
-| **UIDAI** | Credentials only in sidecar `.env` — never in `VITE_` vars |
-| **Demo isolation** | DB function blocks token deduction for `is_demo=true` profiles |
-| **Audit log** | Every connection, signup, and payment recorded in `audit_events` |
+| **Token Deduction** | Atomic PostgreSQL stored procedure (`SELECT ... FOR UPDATE`) |
+| **Row-Level Security** | Enforced across all tables — users access only their own data |
+| **Authentication** | Supabase PKCE flow with auto-refreshing JWTs |
+| **Payment Verification** | Razorpay HMAC SHA256 signature verification server-side |
+| **Credential Safety** | Razorpay Secret & UIDAI keys kept strictly off frontend |
+| **Realtime Security** | Realtime channels protected by Postgres RLS policies |
+| **Audit Trails** | Connections, payments, and account actions recorded in `audit_events` |
 
 ---
 
 ## Environment Variables
 
+### Frontend (`.env.local` or Vercel Environment Variables)
+
 ```bash
-# Copy and fill in:
-cp .env.example .env.local
-
-# Required for full functionality:
+# Supabase (Required)
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 
-# Payment (sidecar only — never VITE_):
+# Razorpay (Public Key)
+VITE_RAZORPAY_KEY_ID=rzp_test_...
+
+# Sidecar Server (Optional if running Express sidecar)
+VITE_SIDECAR_URL=http://localhost:3001
+```
+
+### Sidecar Server (`sidecar/.env` — Backend Only)
+
+```bash
+PORT=3001
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
 RAZORPAY_KEY_ID=rzp_test_...
-RAZORPAY_KEY_SECRET=...
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
 
-# UIDAI (sidecar only — requires formal onboarding):
 UIDAI_CLIENT_ID=...
 UIDAI_CLIENT_SECRET=...
 ```
-
-> The app runs fully in **demo mode** without any configuration — all 20 labeled AI profiles are visible, compatibility scoring works, and the UI is fully interactive.
 
 ---
 
@@ -203,27 +225,30 @@ UIDAI_CLIENT_SECRET=...
 
 | Layer | Technology |
 |---|---|
-| Framework | React 19 + TypeScript + Vite 8 |
-| Styling | Tailwind CSS v4 |
-| State | Zustand 5 (UI) + Supabase Auth (server state) |
-| 3D | Three.js + @react-three/fiber + @react-three/drei |
-| Database | PostgreSQL (Supabase) |
-| Realtime | Supabase Realtime (postgres_changes) |
-| Mapping | Leaflet + Overpass API |
-| Payments | Razorpay (server-side order + webhook) |
-| Identity | UIDAI Developer Sandbox (integration boundary defined) |
-| Scroll | Lenis smooth scroll |
-| Testing | Vitest (compatibility engine unit tests) |
+| **Frontend Framework** | [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
+| **Build Tool** | [Vite 8](https://vitejs.dev/) |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
+| **State Management** | [Zustand 5](https://github.com/pmndrs/zustand) |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL 15 + Supabase Auth) |
+| **Realtime** | Supabase Realtime (`postgres_changes`) |
+| **3D Graphics** | [Three.js](https://threejs.org/) + [@react-three/fiber](https://r3f.docs.pmnd.rs/) + [@react-three/drei](https://github.com/pmndrs/drei) |
+| **Mapping & Geospatial** | [Leaflet](https://leafletjs.com/) + [React-Leaflet](https://react-leaflet.js.org/) + OpenStreetMap / Overpass API |
+| **Payments** | [Razorpay Checkout SDK](https://razorpay.com/) + Express Webhook Sidecar |
+| **Identity Verification** | Surepass / UIDAI Sandbox Adapter |
+| **Animations & Smooth Scroll** | [Lenis](https://lenis.darkroom.engineering/) + [Motion](https://motion.dev/) + [Canvas Confetti](https://www.npmjs.com/package/canvas-confetti) |
+| **Icons** | [Lucide React](https://lucide.dev/) |
+| **Deployment** | [Vercel](https://vercel.com/) |
 
 ---
 
 ## Database Setup
 
-1. Create a Supabase project at https://supabase.com
-2. Open **SQL Editor** → paste contents of `supabase/migrations/001_initial_schema.sql` → Run
-3. Copy your Project URL and anon key into `.env.local`
-4. (Optional) Run the seed script to populate 20 demo profiles
+1. Create a Supabase project at [supabase.com](https://supabase.com).
+2. Open the **SQL Editor** in the Supabase Dashboard.
+3. Run `supabase/migrations/001_initial_schema.sql` to establish tables, stored procedures, triggers, and RLS policies.
+4. Run `supabase/migrations/002_add_flat_images.sql` to support roommate flat/room photo uploads.
+5. Copy your **Project URL** and **Anon Key** into `.env.local` (and into Vercel Settings &rarr; Environment Variables for production).
 
 ---
 
-*Built on the `feature/full-stack-platform` branch — incremental changes preserving the original hackathon frontend architecture.*
+*Built with ❤️ for modern, transparent roommate and co-living discovery.*

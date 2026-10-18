@@ -25,6 +25,7 @@ import {
 } from '../services/connections';
 import { fetchProfileById } from '../services/profiles';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Message, DbProfile, RoommateConnection } from '../types';
 
 export const MessagesPage: React.FC = () => {
@@ -40,6 +41,7 @@ export const MessagesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showActions, setShowActions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -88,12 +90,55 @@ export const MessagesPage: React.FC = () => {
     init();
   }, [conversationId, user, loadMessages]);
 
-  // Realtime subscription for new messages & read status updates
+  // Realtime subscription for instant peer messaging, DB replication & auto-sync
   useEffect(() => {
     if (!conversationId || !isSupabaseConfigured) return;
 
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
+    // Create a bidirectional broadcast & Postgres changes channel
+    const channel = supabase.channel(`chat_room_${conversationId}`, {
+      config: {
+        broadcast: { ack: false, self: false }
+      }
+    });
+
+    channelRef.current = channel;
+
+    channel
+      // 1. Instant Peer Broadcast (sub-50ms live chat across active tabs)
+      .on('broadcast', { event: 'chat_message' }, async ({ payload }) => {
+        const incoming = payload as Message;
+        setMessages(prev => {
+          // Prevent duplicates
+          if (
+            prev.some(
+              m =>
+                m.id === incoming.id ||
+                (m.sender_id === incoming.sender_id &&
+                  m.content === incoming.content &&
+                  Math.abs(new Date(m.created_at).getTime() - new Date(incoming.created_at).getTime()) < 5000)
+            )
+          ) {
+            return prev;
+          }
+          return [...prev, incoming];
+        });
+
+        // Mark as read and broadcast read receipt back to sender
+        if (incoming.sender_id !== user?.id) {
+          await markMessagesRead(conversationId, user!.id);
+          channel.send({
+            type: 'broadcast',
+            event: 'read_receipt',
+            payload: { conversationId, readerId: user!.id }
+          }).catch(() => {});
+        }
+        scrollToBottom('smooth');
+      })
+      // 2. Instant Read Receipt Broadcast (ticks turn cyan in real-time)
+      .on('broadcast', { event: 'read_receipt' }, () => {
+        setMessages(prev => prev.map(m => ({ ...m, is_read: true })));
+      })
+      // 3. Postgres Database Replication (authoritative persistence)
       .on(
         'postgres_changes',
         {
@@ -105,9 +150,19 @@ export const MessagesPage: React.FC = () => {
         async (payload) => {
           const newMsg = payload.new as Message;
           setMessages(prev => {
+            // Reconcile optimistic temp message with database message
+            const tempIndex = prev.findIndex(
+              m => m.id.startsWith('temp-') && m.sender_id === newMsg.sender_id && m.content === newMsg.content
+            );
+            if (tempIndex !== -1) {
+              const updated = [...prev];
+              updated[tempIndex] = newMsg;
+              return updated;
+            }
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+
           if (newMsg.sender_id !== user?.id) {
             await markMessagesRead(conversationId, user!.id);
           }
@@ -129,12 +184,45 @@ export const MessagesPage: React.FC = () => {
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] Connected to chat room ${conversationId}`);
+        }
+      });
+
+    // 4. Lightweight background sync every 2.5 seconds (prevents need for manual page refresh)
+    const syncInterval = setInterval(async () => {
+      if (document.visibilityState === 'visible') {
+        const fresh = await getMessages(conversationId);
+        setMessages(prev => {
+          const tempMsgs = prev.filter(m => m.id.startsWith('temp-'));
+          if (tempMsgs.length === 0) {
+            // Only update state if message count or read status actually changed
+            const hasChanged =
+              prev.length !== fresh.length ||
+              prev.some((p, idx) => p.id !== fresh[idx]?.id || p.is_read !== fresh[idx]?.is_read);
+            return hasChanged ? fresh : prev;
+          }
+          const tempContents = new Set(tempMsgs.map(t => t.content));
+          const confirmed = fresh.filter(f => !tempContents.has(f.content));
+          return [...confirmed, ...tempMsgs];
+        });
+      }
+    }, 2500);
+
+    // 5. Instantly refresh when user tabs back into the window
+    const handleFocus = () => {
+      loadMessages();
+    };
+    window.addEventListener('focus', handleFocus);
 
     return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('focus', handleFocus);
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [conversationId, user]);
+  }, [conversationId, user, loadMessages]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !conversationId || !user || isSending) return;
@@ -145,16 +233,46 @@ export const MessagesPage: React.FC = () => {
       return;
     }
 
-    setIsSending(true);
     const text = inputText.trim();
-    setInputText('');
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content: text,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
 
+    // ⚡ ZERO-LATENCY INSTANT LOCAL SHOW (0ms)
+    setMessages(prev => [...prev, optimisticMsg]);
+    setInputText('');
+    scrollToBottom('smooth');
+
+    // ⚡ FAST SUB-50ms WEBSOCKET BROADCAST TO RECIPIENT
+    if (channelRef.current) {
+      channelRef.current
+        .send({
+          type: 'broadcast',
+          event: 'chat_message',
+          payload: optimisticMsg
+        })
+        .catch(err => console.warn('[Realtime] Broadcast send warning:', err));
+    }
+
+    // Persist to database in background
+    setIsSending(true);
     const result = await sendMessage(conversationId, user.id, text);
     if (!result.success) {
       setError(result.error || 'Failed to send message');
-      setInputText(text); // restore on error
-    } else {
-      scrollToBottom('smooth');
+      // Rollback optimistic message and restore text on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setInputText(text);
+    } else if (result.messageId) {
+      // Reconcile with official database ID
+      setMessages(prev =>
+        prev.map(m => (m.id === tempId ? { ...m, id: result.messageId! } : m))
+      );
     }
     setIsSending(false);
   };
@@ -355,8 +473,7 @@ export const MessagesPage: React.FC = () => {
                 hour12: true
               });
 
-              // Check if message is brand new (< 10 seconds ago) and not read for single tick
-              const isBrandNew = !msg.is_read && (Date.now() - new Date(msg.created_at).getTime() < 10000);
+              const isTemp = msg.id.startsWith('temp-');
 
               return (
                 <div
@@ -381,16 +498,19 @@ export const MessagesPage: React.FC = () => {
                       <span>{timeString}</span>
 
                       {isOwn && (
-                        <span className="flex items-center ml-0.5" title={msg.is_read ? 'Read' : isBrandNew ? 'Sent' : 'Delivered'}>
+                        <span
+                          className="flex items-center ml-0.5"
+                          title={msg.is_read ? 'Read' : isTemp ? 'Sending...' : 'Delivered'}
+                        >
                           {msg.is_read ? (
-                            /* Double teal/blue tick for Read */
-                            <CheckCheck className="w-3.5 h-3.5 text-cyan-900 font-bold" />
-                          ) : isBrandNew ? (
-                            /* Single grey tick for newly sent */
-                            <Check className="w-3.5 h-3.5 text-slate-950/60" />
+                            /* Double cyan tick for Read */
+                            <CheckCheck className="w-3.5 h-3.5 text-cyan-900 dark:text-cyan-300 font-extrabold" />
+                          ) : isTemp ? (
+                            /* Single tick for in-flight / sending */
+                            <Check className="w-3.5 h-3.5 text-slate-950/50 animate-pulse" />
                           ) : (
                             /* Double grey tick for delivered */
-                            <CheckCheck className="w-3.5 h-3.5 text-slate-950/60" />
+                            <CheckCheck className="w-3.5 h-3.5 text-slate-950/70" />
                           )}
                         </span>
                       )}

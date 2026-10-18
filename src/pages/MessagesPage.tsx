@@ -25,6 +25,7 @@ import {
 } from '../services/connections';
 import { fetchProfileById } from '../services/profiles';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useIsUserOnline } from '../services/presence';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Message, DbProfile, RoommateConnection } from '../types';
 
@@ -40,6 +41,9 @@ export const MessagesPage: React.FC = () => {
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showActions, setShowActions] = useState(false);
+  const [inChatOnline, setInChatOnline] = useState(false);
+  const isGlobalOnline = useIsUserOnline(otherUser?.id);
+  const isOtherUserOnline = inChatOnline || isGlobalOnline;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -94,16 +98,30 @@ export const MessagesPage: React.FC = () => {
   useEffect(() => {
     if (!conversationId || !isSupabaseConfigured) return;
 
-    // Create a bidirectional broadcast & Postgres changes channel
+    // Create a bidirectional broadcast & presence channel
     const channel = supabase.channel(`chat_room_${conversationId}`, {
       config: {
-        broadcast: { ack: false, self: false }
+        broadcast: { ack: false, self: false },
+        presence: { key: user?.id || 'anon' }
       }
     });
 
     channelRef.current = channel;
 
+    const checkPresence = () => {
+      if (!otherUser?.id) return;
+      const state = channel.presenceState();
+      const isPresent =
+        Boolean(state[otherUser.id]?.length) ||
+        Object.values(state).some(pList => (pList as any[]).some(p => p.user_id === otherUser.id));
+      setInChatOnline(isPresent);
+    };
+
     channel
+      // Presence tracking for live online green dot
+      .on('presence', { event: 'sync' }, checkPresence)
+      .on('presence', { event: 'join' }, checkPresence)
+      .on('presence', { event: 'leave' }, checkPresence)
       // 1. Instant Peer Broadcast (sub-50ms live chat across active tabs)
       .on('broadcast', { event: 'chat_message' }, async ({ payload }) => {
         const incoming = payload as Message;
@@ -184,9 +202,15 @@ export const MessagesPage: React.FC = () => {
           );
         }
       )
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           console.log(`[Realtime] Connected to chat room ${conversationId}`);
+          if (user?.id) {
+            await channel.track({
+              user_id: user.id,
+              online_at: new Date().toISOString()
+            });
+          }
         }
       });
 
@@ -219,10 +243,22 @@ export const MessagesPage: React.FC = () => {
     return () => {
       clearInterval(syncInterval);
       window.removeEventListener('focus', handleFocus);
+      channel.untrack().catch(() => {});
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [conversationId, user, loadMessages]);
+  }, [conversationId, user, otherUser?.id, loadMessages]);
+
+  // Re-check presence when otherUser is loaded
+  useEffect(() => {
+    if (channelRef.current && otherUser?.id) {
+      const state = channelRef.current.presenceState();
+      const isPresent =
+        Boolean(state[otherUser.id]?.length) ||
+        Object.values(state).some(pList => (pList as any[]).some(p => p.user_id === otherUser.id));
+      setInChatOnline(isPresent);
+    }
+  }, [otherUser?.id]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !conversationId || !user || isSending) return;
@@ -349,7 +385,13 @@ export const MessagesPage: React.FC = () => {
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center text-white font-extrabold text-base shadow-sm ring-2 ring-white dark:ring-slate-800">
                     {otherUser.display_name?.[0] || '?'}
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+                  {/* Green dot ONLY when user is online */}
+                  {isOtherUserOnline && (
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow-sm animate-in fade-in duration-200"
+                      title="Online"
+                    />
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -363,8 +405,18 @@ export const MessagesPage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {otherUser.occupation || 'Roommate'} {otherUser.city ? `• ${otherUser.city}` : ''}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    {isOtherUserOnline && (
+                      <>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                          Online
+                        </span>
+                        <span>•</span>
+                      </>
+                    )}
+                    <span>{otherUser.occupation || 'Roommate'}</span>
+                    {otherUser.city ? <span>• {otherUser.city}</span> : ''}
                   </p>
                 </div>
               </div>
@@ -578,7 +630,6 @@ export const MessagesPage: React.FC = () => {
           <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 px-1">
             <span className="flex items-center gap-1">
               <CheckCheck className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
-              <span>Single tick (sent) • Double tick (delivered) • Teal (read)</span>
             </span>
             <span>{inputText.length}/2000</span>
           </div>

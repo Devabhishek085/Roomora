@@ -7,6 +7,7 @@ import { CustomCursor } from './components/CustomCursor';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
 import { supabase } from './lib/supabase';
+import { initGlobalPresence, cleanupGlobalPresence } from './services/presence';
 
 // Lazy-loaded routes for optimal bundle chunking and performance
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -85,12 +86,24 @@ function AuthRecoveryHandler() {
 
 export function App() {
   const { darkMode } = useAppStore();
-  const { initialize, isInitialized } = useAuthStore();
+  const { user, initialize, isInitialized } = useAuthStore();
 
   // Initialize auth session on app load
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Track global online presence for active logged in users
+  useEffect(() => {
+    if (user?.id) {
+      initGlobalPresence(user.id);
+    } else {
+      cleanupGlobalPresence();
+    }
+    return () => {
+      cleanupGlobalPresence();
+    };
+  }, [user?.id]);
 
   // Initialize Lenis smooth scroll
   useEffect(() => {

@@ -1,11 +1,12 @@
 import React, { useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Lenis from 'lenis';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CustomCursor } from './components/CustomCursor';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
+import { supabase } from './lib/supabase';
 
 // Lazy-loaded routes for optimal bundle chunking and performance
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -48,6 +49,36 @@ function ScrollToTop() {
       lenis.start();
     }
   }, [pathname]);
+
+  return null;
+}
+
+function AuthRecoveryHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const params = new URLSearchParams(search);
+    const code = params.get('code');
+    const isRecoveryHash = hash.includes('type=recovery');
+
+    // If redirected by Supabase with recovery tokens or PKCE code, forward to /reset-password
+    if (isRecoveryHash || (code && location.pathname !== '/reset-password')) {
+      navigate('/reset-password' + search + hash, { replace: true });
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password', { replace: true });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, location]);
 
   return null;
 }
@@ -108,6 +139,7 @@ export function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <AuthRecoveryHandler />
       <CustomCursor />
       <div className="flex flex-col min-h-screen">
         <Navbar />

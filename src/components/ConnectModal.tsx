@@ -22,12 +22,20 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Reset state when roommate changes
+  // Reset state when roommate changes & manage scroll lock
   useEffect(() => {
     if (roommate) {
       setStep('confirm');
       setConversationId(null);
       setErrorMessage(null);
+      const lenis = (window as any).__lenis;
+      if (lenis && typeof lenis.stop === 'function') lenis.stop();
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        if (lenis && typeof lenis.start === 'function') lenis.start();
+        document.body.style.overflow = prev;
+      };
     }
   }, [roommate]);
 
@@ -341,13 +349,14 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"
+      data-lenis-prevent="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overscroll-contain"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-label={`Connect with ${roommate.name}`}
     >
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+      <div data-lenis-prevent="true" className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <h2 className="font-bold text-slate-900 dark:text-white">

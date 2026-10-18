@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   MapPin,
@@ -48,6 +48,24 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'compatibility'>(initialTab);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Pause Lenis smooth scroll while modal is open so mouse wheel scrolls the modal smoothly
+  useEffect(() => {
+    const lenis = (window as any).__lenis;
+    if (lenis && typeof lenis.stop === 'function') {
+      lenis.stop();
+    }
+    const prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      if (lenis && typeof lenis.start === 'function') {
+        lenis.start();
+      }
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
 
   if (!roommate) return null;
 
@@ -77,18 +95,30 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
     setSelectedPhotoIndex((prev) => (prev === photos.length - 1 ? 0 : prev + 1));
   };
 
+  const handleForwardWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop += e.deltaY;
+    }
+  };
+
   return (
     <>
       <div
-        className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+        data-lenis-prevent="true"
+        className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
         onClick={onClose}
       >
         <div
+          data-lenis-prevent="true"
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col"
+          className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col overscroll-contain"
         >
           {/* ════════════ HEADER BAR ════════════ */}
-          <div className="relative p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 bg-gradient-to-r from-slate-50 via-teal-50/20 to-white dark:from-slate-950 dark:via-teal-950/10 dark:to-slate-900">
+          <div
+            onWheel={handleForwardWheel}
+            className="relative p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 bg-gradient-to-r from-slate-50 via-teal-50/20 to-white dark:from-slate-950 dark:via-teal-950/10 dark:to-slate-900"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="relative">
@@ -208,7 +238,12 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
           </div>
 
           {/* ════════════ SCROLLABLE CONTENT BODY ════════════ */}
-          <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 dark:text-slate-200">
+          <div
+            ref={scrollContainerRef}
+            data-lenis-prevent="true"
+            onWheel={(e) => e.stopPropagation()}
+            className="p-5 sm:p-6 overflow-y-auto overscroll-contain space-y-6 flex-1 min-h-0 text-slate-800 dark:text-slate-200 touch-pan-y"
+          >
             {activeTab === 'profile' ? (
               <>
                 {/* ── SECTION 1: PHOTOS OF ROOM / FLAT ── */}
@@ -566,7 +601,10 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
           </div>
 
           {/* ════════════ FOOTER ACTION BAR ════════════ */}
-          <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 flex items-center justify-between gap-3">
+          <div
+            onWheel={handleForwardWheel}
+            className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 flex items-center justify-between gap-3"
+          >
             <button
               type="button"
               onClick={() => toggleSaveRoommate(roommate.id)}

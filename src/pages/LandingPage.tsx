@@ -436,18 +436,22 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* Roommate Profile & Room Photos Pop-up Modal */}
-      <RoommateProfileModal
-        roommate={selectedRoommate?.roommate || null}
-        report={selectedRoommate?.report || null}
-        onClose={() => setSelectedRoommate(null)}
-        onConnect={(rm) => setConnectRoommate(rm)}
-      />
+      {selectedRoommate && (
+        <RoommateProfileModal
+          roommate={selectedRoommate.roommate}
+          report={selectedRoommate.report}
+          onClose={() => setSelectedRoommate(null)}
+          onConnect={(rm) => setConnectRoommate(rm)}
+        />
+      )}
 
       {/* Connect Modal */}
-      <ConnectModal
-        roommate={connectRoommate}
-        onClose={() => setConnectRoommate(null)}
-      />
+      {connectRoommate && (
+        <ConnectModal
+          roommate={connectRoommate}
+          onClose={() => setConnectRoommate(null)}
+        />
+      )}
     </div>
   );
 };

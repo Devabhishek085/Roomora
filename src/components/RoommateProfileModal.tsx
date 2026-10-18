@@ -50,8 +50,10 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Pause Lenis smooth scroll while modal is open so mouse wheel scrolls the modal smoothly
+  // Pause Lenis smooth scroll ONLY while modal is actually open (roommate is non-null)
   useEffect(() => {
+    if (!roommate) return;
+
     const lenis = (window as any).__lenis;
     if (lenis && typeof lenis.stop === 'function') {
       lenis.stop();
@@ -63,9 +65,9 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
       if (lenis && typeof lenis.start === 'function') {
         lenis.start();
       }
-      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.overflow = prevBodyOverflow || '';
     };
-  }, []);
+  }, [roommate]);
 
   if (!roommate) return null;
 

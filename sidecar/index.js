@@ -367,19 +367,39 @@ app.post('/api/notify/connection-request', requireAuth, async (req, res) => {
   }
 
   try {
-    // Get recipient email from Supabase Auth admin API
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(recipientId);
-    if (userError || !userData?.user?.email) {
-      console.error('[Notify] Cannot fetch recipient email:', userError?.message);
+    // 1. Try to fetch recipient email & name from public.profiles table
+    let recipientEmail = null;
+    let recipientName = null;
+
+    const { data: profileData } = await supabaseAdmin
+      .from('profiles')
+      .select('display_name, email')
+      .eq('id', recipientId)
+      .maybeSingle();
+
+    if (profileData) {
+      recipientEmail = profileData.email;
+      recipientName = profileData.display_name;
+    }
+
+    // 2. Fallback: Query Supabase Auth Admin API if not present in profiles table
+    if (!recipientEmail) {
+      try {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(recipientId);
+        if (userData?.user?.email) {
+          recipientEmail = userData.user.email;
+        }
+      } catch (authErr) {
+        console.warn('[Notify] Auth admin fallback lookup failed:', authErr.message);
+      }
+    }
+
+    if (!recipientEmail) {
+      console.error('[Notify] Recipient email not found for ID:', recipientId);
       return res.status(200).json({ sent: false, reason: 'recipient_email_not_found' });
     }
 
-    // Get recipient display name from profiles
-    const { data: profileData } = await supabaseAdmin
-      .from('profiles').select('display_name').eq('id', recipientId).maybeSingle();
-
-    const recipientEmail = userData.user.email;
-    const recipientName = profileData?.display_name || recipientEmail.split('@')[0];
+    recipientName = recipientName || recipientEmail.split('@')[0];
     const appUrl = process.env.APP_URL || 'http://localhost:5173';
     const fromName = process.env.EMAIL_FROM_NAME || 'Roomora';
     const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.GMAIL_USER;

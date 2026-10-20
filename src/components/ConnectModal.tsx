@@ -87,13 +87,14 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
         setConversationId(convoId);
       }
 
-      // Fire email notification to recipient
+      // Fire-and-forget email notification to recipient
       sendConnectionInvitationEmail({
         recipientId: roommate.id,
-        recipientName: roommate.name,
-        initiatorName: dbProfile?.display_name || user.user_metadata?.full_name || 'A user',
+        initiatorName: dbProfile?.display_name || user.user_metadata?.full_name || 'A Roomora user',
+        initiatorAvatar: dbProfile?.avatar_url || undefined,
         initiatorOccupation: dbProfile?.occupation || undefined,
-        initiatorCity: dbProfile?.city || undefined
+        initiatorCity: dbProfile?.city || undefined,
+        connectionId: result.connectionId || undefined,
       }).catch(err => console.warn('[ConnectModal] Notification dispatch error:', err));
 
       setStep('success');

@@ -289,6 +289,129 @@ app.post('/api/webhooks/razorpay', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// EMAIL NOTIFICATION — CONNECTION REQUEST
+// ═══════════════════════════════════════════════════════════════
+
+function buildConnectionRequestEmail({ senderName, senderAvatar, senderOccupation, senderCity, recipientName, connectionId, appUrl }) {
+  const connectionsUrl = `${appUrl}/connections`;
+  const messagesUrl = `${appUrl}/messages/${connectionId}`;
+  const avatarUrl = senderAvatar || `https://api.dicebear.com/8.x/avataaars/svg?seed=${encodeURIComponent(senderName)}`;
+
+  return {
+    subject: `\uD83C\uDFE0 ${senderName} wants to connect with you on Roomora`,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>New Connection Request</title></head>
+<body style="margin:0;padding:0;background:#07090e;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#07090e;padding:40px 16px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <tr><td style="padding-bottom:28px;text-align:center;">
+        <span style="font-size:26px;font-weight:900;color:#2dd4bf;">\uD83E\uDE90 Roomora</span>
+        <p style="margin:6px 0 0;color:#64748b;font-size:11px;letter-spacing:1px;text-transform:uppercase;">Roommate Matching Platform</p>
+      </td></tr>
+      <tr><td style="background:#0f1117;border:1px solid #1e293b;border-radius:20px;padding:32px;">
+        <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:22px;font-weight:800;text-align:center;">New Connection Request!</h1>
+        <p style="margin:0 0 24px;color:#94a3b8;font-size:14px;text-align:center;">Hi <strong style="color:#e2e8f0;">${recipientName}</strong>, someone wants to be your roommate.</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#161b27;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:24px;">
+          <tr>
+            <td width="60" valign="middle" style="padding-right:14px;">
+              <img src="${avatarUrl}" width="52" height="52" style="border-radius:50%;border:2px solid #2dd4bf;" alt="${senderName}"/>
+            </td>
+            <td valign="middle">
+              <p style="margin:0 0 2px;color:#f1f5f9;font-size:16px;font-weight:700;">${senderName}</p>
+              <p style="margin:0 0 2px;color:#94a3b8;font-size:13px;">${senderOccupation || 'Roommate seeker'}</p>
+              <p style="margin:0;color:#64748b;font-size:12px;">\uD83D\uDCCD ${senderCity || 'India'}</p>
+            </td>
+            <td align="right" valign="middle">
+              <span style="background:#0d9488;color:#f0fdfa;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;">\u2713 Connected</span>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:0 0 20px;color:#94a3b8;font-size:14px;text-align:center;">They used a connection token to reach you. Open the chat to respond.</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td align="center" style="padding-bottom:12px;">
+            <a href="${messagesUrl}" style="display:inline-block;background:#0d9488;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;">Open Chat with ${senderName} \u2192</a>
+          </td></tr>
+          <tr><td align="center">
+            <a href="${connectionsUrl}" style="color:#64748b;font-size:13px;text-decoration:none;">View all connections</a>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding-top:24px;text-align:center;color:#334155;font-size:11px;line-height:1.6;">
+        <p style="margin:0 0 4px;">You received this because someone connected with you on Roomora.</p>
+        <p style="margin:0;">&copy; ${new Date().getFullYear()} Roomora &middot; <a href="${appUrl}" style="color:#0d9488;text-decoration:none;">roomora.in</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`,
+    text: `Hi ${recipientName},\n\n${senderName} (${senderOccupation || 'Roommate seeker'} · ${senderCity || 'India'}) has sent you a connection request on Roomora.\n\nOpen chat: ${messagesUrl}\nAll connections: ${connectionsUrl}\n\n— Roomora Team`,
+  };
+}
+
+/**
+ * POST /api/notify/connection-request
+ * Called by ConnectModal after a successful token deduction.
+ * Sends an email notification to the recipient.
+ * Best-effort — never fails the main connection flow.
+ */
+app.post('/api/notify/connection-request', requireAuth, async (req, res) => {
+  if (!mailTransporter) {
+    console.warn('[Notify] Email transporter not configured — skipping');
+    return res.status(200).json({ sent: false, reason: 'email_not_configured' });
+  }
+
+  const { connectionId, recipientId, senderName, senderAvatar, senderOccupation, senderCity } = req.body;
+
+  if (!recipientId || !senderName) {
+    return res.status(400).json({ error: 'recipientId and senderName are required' });
+  }
+
+  try {
+    // Get recipient email from Supabase Auth admin API
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(recipientId);
+    if (userError || !userData?.user?.email) {
+      console.error('[Notify] Cannot fetch recipient email:', userError?.message);
+      return res.status(200).json({ sent: false, reason: 'recipient_email_not_found' });
+    }
+
+    // Get recipient display name from profiles
+    const { data: profileData } = await supabaseAdmin
+      .from('profiles').select('display_name').eq('id', recipientId).maybeSingle();
+
+    const recipientEmail = userData.user.email;
+    const recipientName = profileData?.display_name || recipientEmail.split('@')[0];
+    const appUrl = process.env.APP_URL || 'http://localhost:5173';
+    const fromName = process.env.EMAIL_FROM_NAME || 'Roomora';
+    const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.GMAIL_USER;
+
+    const { subject, html, text } = buildConnectionRequestEmail({
+      senderName, senderAvatar, senderOccupation, senderCity,
+      recipientName, connectionId, appUrl,
+    });
+
+    await mailTransporter.sendMail({
+      from: `"${fromName}" <${fromAddress}>`,
+      to: recipientEmail,
+      subject, html, text,
+    });
+
+    // Audit log
+    await supabaseAdmin.from('audit_events').insert({
+      user_id: req.userId,
+      event_type: 'connection_notification_sent',
+      metadata: { recipient_id: recipientId, connection_id: connectionId, channel: 'email' },
+    });
+
+    console.log(`[Notify] Email sent to ${recipientEmail} for connection ${connectionId}`);
+    res.json({ sent: true, recipient: recipientEmail });
+
+  } catch (err) {
+    console.error('[Notify] Email send failed:', err.message);
+    res.status(200).json({ sent: false, reason: err.message }); // Best-effort — don't block connection
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // IDENTITY VERIFICATION ENDPOINTS (provider-switchable)
 // Current provider set via VERIFICATION_PROVIDER env var:
 //   'msg91'    → Phone OTP (instant signup at msg91.com)

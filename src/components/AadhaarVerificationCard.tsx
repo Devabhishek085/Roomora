@@ -212,7 +212,7 @@ export const AadhaarVerificationCard: React.FC = () => {
           className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-slate-950 disabled:text-slate-400 font-bold text-sm transition-all active:scale-95"
           id="start-aadhaar-verification-btn"
         >
-          <span>Verify with Aadhaar (via Surepass)</span>
+          <span>Verify with Aadhaar</span>
           <ChevronRight className="w-4 h-4" />
         </button>
       )}

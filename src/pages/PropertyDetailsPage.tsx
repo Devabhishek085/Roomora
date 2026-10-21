@@ -32,10 +32,12 @@ export const PropertyDetailsPage: React.FC = () => {
 
   // Retrieve or regenerate listing
   const property: PropertyListing | undefined = useMemo(() => {
-    const list = generateDemoListings(selectedLocation.lat, selectedLocation.lng, 12);
+    const lat = Number.isFinite(selectedLocation?.lat) ? selectedLocation.lat : 28.6923;
+    const lng = Number.isFinite(selectedLocation?.lng) ? selectedLocation.lng : 77.2117;
+    const list = generateDemoListings(lat, lng, 12);
     const found = list.find((p) => p.id === id);
     return found || list[0];
-  }, [id, selectedLocation.lat, selectedLocation.lng]);
+  }, [id, selectedLocation?.lat, selectedLocation?.lng]);
 
   useEffect(() => {
     if (property) {

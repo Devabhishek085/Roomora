@@ -248,7 +248,7 @@ export const OnboardingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-[1440px] mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Top Header */}
         <div className="text-center space-y-2 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 text-xs font-bold">

@@ -197,7 +197,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-[1500px] w-full mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Profile Card Header */}
         <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">

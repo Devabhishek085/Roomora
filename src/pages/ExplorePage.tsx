@@ -129,7 +129,7 @@ export const ExplorePage: React.FC = () => {
       </div>
 
       {/* Main Exploration Split View */}
-      <div className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {/* Top Control Bar: Search + Filters trigger + View toggle */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
           <div className="flex-1 max-w-xl">

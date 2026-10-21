@@ -197,7 +197,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Profile Card Header */}
         <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -384,7 +384,7 @@ export const DashboardPage: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
                   {(userProfile.flatImages || dbProfile?.flat_images || []).map((imgUrl, idx) => (
                     <div
                       key={idx}
@@ -438,7 +438,7 @@ export const DashboardPage: React.FC = () => {
               {recentSearches.length === 0 ? (
                 <p className="text-xs text-slate-400 py-3">No recent searches yet.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {recentSearches.map((item, idx) => (
                     <div
                       key={idx}
@@ -525,7 +525,7 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-teal-600 dark:text-teal-400 font-bold">Visible to prospective roommates</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {(userProfile.flatImages || dbProfile?.flat_images || []).map((imgUrl, idx) => (
                     <div
                       key={idx}
@@ -579,7 +579,7 @@ export const DashboardPage: React.FC = () => {
                   No properties saved. Click the heart icon on any property in Explore.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {savedPropsList.map((p) => (
                     <div
                       key={p.id}
@@ -622,7 +622,7 @@ export const DashboardPage: React.FC = () => {
                   No roommates saved yet.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {savedRoommatesList.map((r) => (
                     <div
                       key={r.id}
@@ -743,64 +743,70 @@ export const DashboardPage: React.FC = () => {
 
         {/* TAB 5: PRIVACY & SETTINGS */}
         {activeTab === 'privacy' && (
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-6">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Identity Verification
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Verify your Aadhaar via Surepass (licensed UIDAI partner) to earn the ✓ badge on your profile.
-              </p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Col: Aadhaar Verification */}
+            <div className="lg:col-span-7 p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-6 shadow-sm">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-teal-500" />
+                  <span>Government Identity Verification</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Verify your Aadhaar via Surepass (licensed UIDAI partner) to earn the verified ✓ badge on your roommate profile. Your Aadhaar number is never stored on our database.
+                </p>
+              </div>
+
+              {/* Aadhaar verification card */}
+              <AadhaarVerificationCard />
             </div>
 
-            {/* Aadhaar verification card */}
-            <AadhaarVerificationCard />
+            {/* Right Col: Local Privacy & Account Preferences */}
+            <div className="lg:col-span-5 p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-6 shadow-sm">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-indigo-500" />
+                  <span>Privacy &amp; Profile Visibility</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Fine-tune what information is visible to prospective roommates on your public card.
+                </p>
+              </div>
 
-            <hr className="border-slate-200 dark:border-slate-800" />
+              <div className="space-y-3 pt-1">
+                <label className="flex items-start justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 cursor-pointer gap-3">
+                  <div>
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">
+                      Publicly display budget on profile card
+                    </span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 block">
+                      If disabled, candidates only see that your budgets overlap.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={userProfile.showBudgetPublicly}
+                    onChange={(e) => updateUserProfile({ showBudgetPublicly: e.target.checked })}
+                    className="accent-teal-500 w-4 h-4 mt-0.5"
+                  />
+                </label>
 
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Local Privacy & Account Preferences
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Settings are saved in your browser. No external telemetry or cloud tracking.
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-3">
-              <label className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 cursor-pointer">
-                <div>
-                  <span className="font-bold text-xs text-slate-900 dark:text-white block">
-                    Publicly display my budget on profile cards
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    If disabled, candidates only see that your budgets overlap.
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={userProfile.showBudgetPublicly}
-                  onChange={(e) => updateUserProfile({ showBudgetPublicly: e.target.checked })}
-                  className="accent-teal-500 w-4 h-4"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 cursor-pointer">
-                <div>
-                  <span className="font-bold text-xs text-slate-900 dark:text-white block">
-                    Publicly display my sleep schedule badge
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    Whether to show Night Owl / Early Bird badge on card.
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={userProfile.showSleepSchedulePublicly}
-                  onChange={(e) => updateUserProfile({ showSleepSchedulePublicly: e.target.checked })}
-                  className="accent-teal-500 w-4 h-4"
-                />
-              </label>
+                <label className="flex items-start justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 cursor-pointer gap-3">
+                  <div>
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">
+                      Publicly display sleep schedule badge
+                    </span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 block">
+                      Show Night Owl / Early Bird routine tag on your match card.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={userProfile.showSleepSchedulePublicly}
+                    onChange={(e) => updateUserProfile({ showSleepSchedulePublicly: e.target.checked })}
+                    className="accent-teal-500 w-4 h-4 mt-0.5"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         )}

@@ -44,12 +44,27 @@ export const MessagesPage: React.FC = () => {
   const [inChatOnline, setInChatOnline] = useState(false);
   const isGlobalOnline = useIsUserOnline(otherUser?.id);
   const isOtherUserOnline = inChatOnline || isGlobalOnline;
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const threshold = 100;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
   };
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    requestAnimationFrame(() => {
+      const el = messagesContainerRef.current;
+      if (!el) return;
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior
+      });
+    });
+  }, []);
 
   const loadMessages = useCallback(async () => {
     if (!conversationId || !user) return;
@@ -57,7 +72,7 @@ export const MessagesPage: React.FC = () => {
     setMessages(msgs);
     await markMessagesRead(conversationId, user.id);
     scrollToBottom('auto');
-  }, [conversationId, user]);
+  }, [conversationId, user, scrollToBottom]);
 
   // Load conversation info, participants, and connection status
   useEffect(() => {
@@ -364,12 +379,12 @@ export const MessagesPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] py-3 sm:py-6 px-3 sm:px-6 flex flex-col justify-center">
+    <div className="h-[calc(100dvh-4.25rem)] max-h-[calc(100dvh-4.25rem)] bg-[#FAF8F5] dark:bg-[#0A0D14] p-2 sm:p-4 md:p-5 flex flex-col justify-center overflow-hidden">
       {/* Framed Chat Window Card */}
-      <div className="max-w-4xl w-full mx-auto h-[calc(100vh-5rem)] min-h-[580px] flex flex-col rounded-3xl border-2 border-slate-200/90 dark:border-slate-800 shadow-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl overflow-hidden transition-all">
+      <div className="max-w-4xl w-full mx-auto h-full flex-1 min-h-0 flex flex-col rounded-2xl sm:rounded-3xl border-2 border-slate-200/90 dark:border-slate-800 shadow-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl overflow-hidden transition-all">
         
         {/* Chat Window Header */}
-        <div className="px-4 sm:px-6 py-3.5 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between z-10">
+        <div className="shrink-0 px-4 sm:px-6 py-3.5 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <Link
               to="/connections"
@@ -469,7 +484,7 @@ export const MessagesPage: React.FC = () => {
 
         {/* Pending Invitation Notification Banner */}
         {isPending && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-teal-500/10 border-b border-amber-200/80 dark:border-amber-800/60 p-3 sm:px-6">
+          <div className="shrink-0 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-teal-500/10 border-b border-amber-200/80 dark:border-amber-800/60 p-3 sm:px-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-xs text-slate-800 dark:text-slate-200">
                 <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -498,7 +513,12 @@ export const MessagesPage: React.FC = () => {
         )}
 
         {/* Messages Body Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 bg-gradient-to-b from-slate-50/70 to-slate-100/50 dark:from-slate-950/70 dark:to-slate-900/60">
+        <div
+          ref={messagesContainerRef}
+          data-lenis-prevent="true"
+          onScroll={handleScroll}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-3.5 bg-gradient-to-b from-slate-50/70 to-slate-100/50 dark:from-slate-950/70 dark:to-slate-900/60"
+        >
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full py-20 space-y-3">
               <div className="animate-spin w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full" />
@@ -572,12 +592,11 @@ export const MessagesPage: React.FC = () => {
               );
             })
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Error Alert inside chat window */}
         {error && (
-          <div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/50 border-t border-rose-200 dark:border-rose-800 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300">
+          <div className="shrink-0 px-4 py-2 bg-rose-50 dark:bg-rose-950/50 border-t border-rose-200 dark:border-rose-800 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
@@ -589,7 +608,7 @@ export const MessagesPage: React.FC = () => {
         )}
 
         {/* UI Under Chat Window: Stylized Composer Dock */}
-        <div className="p-3 sm:p-4 bg-slate-100/95 dark:bg-slate-900/95 border-t-2 border-slate-200/90 dark:border-slate-800/90 backdrop-blur-md">
+        <div className="shrink-0 p-3 sm:p-4 bg-slate-100/95 dark:bg-slate-900/95 border-t-2 border-slate-200/90 dark:border-slate-800/90 backdrop-blur-md">
           <div className="relative flex items-end gap-2.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-300/80 dark:border-slate-700/80 shadow-sm focus-within:ring-2 focus-within:ring-teal-500/50 focus-within:border-teal-500 p-2 transition-all">
             <textarea
               value={inputText}

@@ -47,11 +47,22 @@ function ScrollToTop() {
     document.body.style.overflow = '';
     const lenis = (window as any).__lenis;
     if (lenis && typeof lenis.start === 'function') {
-      lenis.start();
+      if (pathname.startsWith('/messages')) {
+        lenis.stop();
+      } else {
+        lenis.start();
+      }
     }
   }, [pathname]);
 
   return null;
+}
+
+function ConditionalFooter() {
+  const location = useLocation();
+  const isMessagesPage = location.pathname.startsWith('/messages');
+  if (isMessagesPage) return null;
+  return <Footer />;
 }
 
 function AuthRecoveryHandler() {
@@ -190,7 +201,7 @@ export function App() {
             </Routes>
           </Suspense>
         </main>
-        <Footer />
+        <ConditionalFooter />
       </div>
     </BrowserRouter>
   );

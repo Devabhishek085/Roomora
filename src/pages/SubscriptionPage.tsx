@@ -167,24 +167,24 @@ export const SubscriptionPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-12 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto space-y-10">
+    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1500px] w-full mx-auto space-y-12">
         {/* Header */}
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-3 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-100 dark:bg-teal-950 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-bold">
             <Zap className="w-3.5 h-3.5" />
             <span>Connect Without Limits</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold font-heading text-slate-900 dark:text-white">
+          <h1 className="text-3xl sm:text-5xl font-extrabold font-heading text-slate-900 dark:text-white">
             Choose Your Plan
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 max-w-xl mx-auto">
-            Every new account gets 10 free connections. Upgrade when you&apos;re ready to connect with unlimited roommates.
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">
+            Every new student account starts with 10 free connection tokens. Upgrade to enjoy unlimited invites, direct WhatsApp messaging, and algorithmic priority.
           </p>
 
           {/* Current balance display */}
           {user && tokenBalance && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-semibold">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-semibold">
               <span className="text-teal-600 dark:text-teal-400 font-black">
                 {tokenBalance.balance >= 999 ? '♾️ Unlimited' : tokenBalance.balance}
               </span>
@@ -234,13 +234,13 @@ export const SubscriptionPage: React.FC = () => {
         )}
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {SUBSCRIPTION_PLANS.map((plan) => (
             <div
               key={plan.id}
-              className={`relative rounded-3xl border-2 p-8 flex flex-col transition-all ${
+              className={`relative rounded-3xl border-2 p-8 flex flex-col justify-between transition-all ${
                 plan.highlighted
-                  ? 'border-teal-500 bg-gradient-to-b from-teal-950/30 to-slate-900/50 shadow-2xl shadow-teal-500/10'
+                  ? 'border-teal-500 bg-gradient-to-b from-teal-950/30 to-slate-900/50 shadow-2xl shadow-teal-500/10 scale-100 md:scale-105 z-10'
                   : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md'
               }`}
             >
@@ -253,88 +253,125 @@ export const SubscriptionPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-2">
-                  {plan.id === 'premium' ? (
-                    <Crown className="w-5 h-5 text-amber-400" />
-                  ) : plan.id === 'monthly' ? (
-                    <Zap className="w-5 h-5 text-teal-500" />
-                  ) : (
-                    <ShieldCheck className="w-5 h-5 text-slate-400" />
-                  )}
-                  <h2 className="text-xl font-black font-heading text-slate-900 dark:text-white">
-                    {plan.name}
-                  </h2>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{plan.description}</p>
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    {plan.id === 'premium' ? (
+                      <Crown className="w-5 h-5 text-amber-400" />
+                    ) : plan.id === 'monthly' ? (
+                      <Zap className="w-5 h-5 text-teal-500" />
+                    ) : (
+                      <ShieldCheck className="w-5 h-5 text-slate-400" />
+                    )}
+                    <h2 className="text-xl font-black font-heading text-slate-900 dark:text-white">
+                      {plan.name}
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{plan.description}</p>
 
-                <div className="mt-4">
-                  {plan.priceMonthly === 0 ? (
-                    <span className="text-3xl font-black text-slate-900 dark:text-white">Free</span>
-                  ) : (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-slate-900 dark:text-white">
-                        ₹{plan.priceMonthly}
-                      </span>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">/month</span>
-                    </div>
-                  )}
+                  <div className="mt-4">
+                    {plan.priceMonthly === 0 ? (
+                      <span className="text-4xl font-black text-slate-900 dark:text-white">Free</span>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-black text-slate-900 dark:text-white">
+                          ₹{plan.priceMonthly}
+                        </span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">/month</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-2 text-xs font-semibold text-teal-600 dark:text-teal-400">
+                    {plan.connectionsPerMonth === 'unlimited'
+                      ? '♾️ Unlimited connections'
+                      : `${plan.connectionsPerMonth} free connections`}
+                  </div>
                 </div>
 
-                <div className="mt-2 text-xs font-semibold text-teal-600 dark:text-teal-400">
-                  {plan.connectionsPerMonth === 'unlimited'
-                    ? '♾️ Unlimited connections'
-                    : `${plan.connectionsPerMonth} free connections`}
-                </div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
+                      <Check className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              <ul className="space-y-3 flex-1 mb-8">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <Check className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {plan.id === 'free' ? (
-                user ? (
-                  <div className="px-6 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
-                    Current Plan
-                  </div>
-                ) : (
-                  <Link
-                    to="/register"
-                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition"
-                  >
-                    <span>Get Started Free</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                )
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleSubscribe(plan.id, plan.pricePaise)}
-                  disabled={isProcessing === plan.id}
-                  className={`flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all active:scale-95 cursor-pointer ${
-                    plan.highlighted
-                      ? 'bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-md shadow-teal-500/20'
-                      : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90'
-                  } disabled:opacity-60`}
-                  id={`subscribe-${plan.id}-btn`}
-                >
-                  {isProcessing === plan.id ? (
-                    <span className="animate-spin w-4 h-4 border-2 border-current/30 border-t-current rounded-full" />
+              <div>
+                {plan.id === 'free' ? (
+                  user ? (
+                    <div className="px-6 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
+                      Current Plan
+                    </div>
                   ) : (
-                    <>
-                      <span>Subscribe</span>
+                    <Link
+                      to="/register"
+                      className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition"
+                    >
+                      <span>Get Started Free</span>
                       <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              )}
+                    </Link>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribe(plan.id, plan.pricePaise)}
+                    disabled={isProcessing === plan.id}
+                    className={`w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 cursor-pointer ${
+                      plan.highlighted
+                        ? 'bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-md shadow-teal-500/20'
+                        : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90'
+                    } disabled:opacity-60`}
+                    id={`subscribe-${plan.id}-btn`}
+                  >
+                    {isProcessing === plan.id ? (
+                      <span className="animate-spin w-4 h-4 border-2 border-current/30 border-t-current rounded-full" />
+                    ) : (
+                      <>
+                        <span>Subscribe</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
+        </div>
+
+        {/* Value Proposition Cards - 3 Columns on Widescreen */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
+              ⚡
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Zero Brokerage, Ever</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Connect directly with verified students and flatmates. Avoid paying hefty one-month rent agent fees to brokers.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+              👑
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Priority Feed Exposure</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Pro members are highlighted at the top of compatibility match searches in their university cluster, securing roommates faster.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              🛡️
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Verified Trust Seal</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Display verified student and Aadhaar badges on your public card, resulting in 3.5× higher acceptance rates for your invites.
+            </p>
+          </div>
         </div>
 
         {/* Security note */}

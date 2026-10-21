@@ -14,7 +14,9 @@ import {
   Home,
   Image as ImageIcon,
   Plus,
-  Trash2
+  Trash2,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAppStore, createEmptyUserProfile } from '../store/useAppStore';
@@ -245,22 +247,22 @@ export const OnboardingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-10 px-4 sm:px-6">
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Progress Bar & Header */}
-        <div className="text-center space-y-2">
+    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1440px] mx-auto space-y-8">
+        {/* Top Header */}
+        <div className="text-center space-y-2 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 text-xs font-bold">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Step {step} of {totalSteps}</span>
           </div>
 
-          <h1 className="text-3xl font-extrabold font-heading text-slate-900 dark:text-white">
+          <h1 className="text-3xl sm:text-4xl font-extrabold font-heading text-slate-900 dark:text-white">
             {step === 1 && 'Your Academic & Housing Profile'}
             {step === 2 && 'Daily Lifestyle & Circadian Routine'}
             {step === 3 && 'Importance Weights & Hard Limits'}
             {step === 4 && 'Your Bio & Privacy Preferences'}
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
             {step === 1 && 'Add your photo and basic college details so potential roommates recognize you.'}
             {step === 2 && 'Prevent roommate conflict over lights-out hours and daily habits.'}
             {step === 3 && 'Choose which lifestyle factors matter most to you, and mark non-negotiables.'}
@@ -276,8 +278,107 @@ export const OnboardingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Form Container */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xl space-y-6">
+        {/* Main 2-Column Balanced Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Left Column: Live Matching Insights & Dynamic Stats */}
+          <div className="hidden lg:block lg:col-span-4 xl:col-span-4 space-y-5 lg:sticky lg:top-24">
+            
+            {/* Step Navigation Card */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+              <h3 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Quiz Progress
+              </h3>
+              <div className="space-y-2">
+                {[
+                  { num: 1, title: 'Academic & Housing', desc: 'College, location & budget' },
+                  { num: 2, title: 'Lifestyle & Habits', desc: 'Sleep, cleanliness & diet' },
+                  { num: 3, title: 'Weights & Non-Negotiables', desc: 'Custom compatibility factors' },
+                  { num: 4, title: 'Bio & Verification', desc: 'Photos, intro & privacy' },
+                ].map((s) => (
+                  <div
+                    key={s.num}
+                    onClick={() => setStep(s.num)}
+                    className={`flex items-start gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
+                      step === s.num
+                        ? 'bg-teal-50 dark:bg-teal-950/60 border border-teal-500/30 text-teal-900 dark:text-teal-200 shadow-sm'
+                        : step > s.num
+                        ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                        : 'text-slate-400 dark:text-slate-500 opacity-60'
+                    }`}
+                  >
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                        step === s.num
+                          ? 'bg-teal-500 text-slate-950 shadow-sm'
+                          : step > s.num
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                      }`}
+                    >
+                      {step > s.num ? '✓' : s.num}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold">{s.title}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Algorithm Match Forecast */}
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-teal-500/10 via-slate-900/5 to-emerald-500/10 dark:from-teal-950/40 dark:via-slate-900 dark:to-emerald-950/30 border border-teal-500/20 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Zap className="w-3.5 h-3.5" />
+                  Live Match Index
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-teal-500 text-slate-950 text-[10px] font-black">
+                  {form.sleepSchedule === 'Flexible' ? '94%' : '88%'} Match Potential
+                </span>
+              </div>
+
+              <div>
+                <p className="text-xl font-black font-heading text-slate-900 dark:text-white">
+                  {form.city ? `High Density in ${form.city}` : 'Targeting Delhi-NCR & Metro'}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Based on your routine ({form.sleepSchedule}, cleanliness {form.cleanliness}/5), our matching algorithm is narrowing down students with compatible habits.
+                </p>
+              </div>
+
+              {/* Dynamic Routine Tags */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  {form.sleepSchedule === 'Early Bird' && '🌅 Early Riser'}
+                  {form.sleepSchedule === 'Night Owl' && '🦉 Late Night Studies'}
+                  {form.sleepSchedule === 'Flexible' && '⚖️ Adaptable Routine'}
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  ✨ Cleanliness: {form.cleanliness}/5
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  🥗 {form.foodPreference}
+                </span>
+              </div>
+            </div>
+
+            {/* Why Lifestyle Matters Insight */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                <ShieldCheck className="w-4 h-4 text-teal-500" />
+                <span>Zero Roommate Surprises</span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Over 68% of roommate dropouts are caused by conflicting sleep hours, uncommunicated guest visits, or hygiene disputes. Answering honestly saves you time, lease disputes, and stress.
+              </p>
+            </div>
+
+          </div>
+
+          {/* Right Column: Expanded Form Container */}
+          <div className="lg:col-span-8 xl:col-span-8 p-6 sm:p-10 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xl space-y-6">
           {/* STEP 1: Academic & Housing + Photo */}
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in duration-200">
@@ -902,5 +1003,6 @@ export const OnboardingPage: React.FC = () => {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };

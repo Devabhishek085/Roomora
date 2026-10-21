@@ -198,14 +198,6 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Primary CTA: Find Roommates */}
-            <Link
-              to="/matches"
-              className="hidden md:inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition-all shadow-md hover:shadow-lg active:scale-95"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Find Roommates</span>
-            </Link>
 
             {/* Mobile hamburger button */}
             <button

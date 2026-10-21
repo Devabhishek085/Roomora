@@ -274,7 +274,6 @@ export const DashboardPage: React.FC = () => {
             { id: 'photos', label: `My Room Photos (${(userProfile.flatImages || dbProfile?.flat_images || []).length})`, icon: Home },
             { id: 'saved', label: `Saved (${savedProperties.length + savedRoommates.length})`, icon: Heart },
             { id: 'inquiries', label: `PG Inquiries (${inquiries.length})`, icon: Building2 },
-            { id: 'requests', label: `Roommate Connects (${roommateRequests.length})`, icon: Send },
             { id: 'privacy', label: 'Privacy & Settings', icon: Lock }
           ].map((tab) => {
             const Icon = tab.icon;

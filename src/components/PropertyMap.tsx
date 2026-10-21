@@ -21,13 +21,13 @@ function MapFlyController({ center }: { center: LocationCoordinates }) {
   const map = useMap();
 
   useEffect(() => {
-    if (center.lat && center.lng) {
+    if (center && Number.isFinite(center.lat) && Number.isFinite(center.lng)) {
       map.flyTo([center.lat, center.lng], 14, {
         duration: 1.5,
         easeLinearity: 0.25
       });
     }
-  }, [center.lat, center.lng, map]);
+  }, [center?.lat, center?.lng, map]);
 
   return null;
 }
@@ -131,10 +131,13 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
     }
   };
 
+  const mapCenterLat = Number.isFinite(center?.lat) ? center.lat : 28.6923;
+  const mapCenterLng = Number.isFinite(center?.lng) ? center.lng : 77.2117;
+
   return (
     <div className="relative w-full h-full min-h-[450px] rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-xl">
       <MapContainer
-        center={[center.lat, center.lng]}
+        center={[mapCenterLat, mapCenterLng]}
         zoom={14}
         scrollWheelZoom={true}
         className="w-full h-full z-0"
@@ -151,8 +154,8 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
         {/* Radius Search Circle */}
         <Circle
-          center={[center.lat, center.lng]}
-          radius={radiusKm * 1000}
+          center={[mapCenterLat, mapCenterLng]}
+          radius={(radiusKm || 6) * 1000}
           pathOptions={{
             color: '#14b8a6',
             fillColor: '#14b8a6',
@@ -163,7 +166,7 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
         />
 
         {/* Center "You Are Here" Marker */}
-        <Marker position={[center.lat, center.lng]} icon={centerPinIcon}>
+        <Marker position={[mapCenterLat, mapCenterLng]} icon={centerPinIcon}>
           <Popup>
             <div className="p-3">
               <div className="flex items-center gap-1.5 text-xs font-bold text-teal-600 mb-1">

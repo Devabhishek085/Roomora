@@ -21,9 +21,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   return (
     <div
+      onClick={() => onOpenDetails(property)}
       onMouseEnter={() => onHover && onHover(property.id)}
       onMouseLeave={() => onHover && onHover(null)}
-      className={`group relative rounded-3xl bg-white dark:bg-slate-900 border transition-all duration-200 flex flex-col overflow-hidden shadow-sm hover:shadow-xl ${
+      className={`group relative rounded-3xl bg-white dark:bg-slate-900 border transition-all duration-200 flex flex-col overflow-hidden shadow-sm hover:shadow-xl cursor-pointer ${
         isHovered
           ? 'ring-2 ring-teal-500 border-teal-500 shadow-teal-500/10 dark:shadow-teal-900/30'
           : 'border-slate-200/80 dark:border-slate-800'

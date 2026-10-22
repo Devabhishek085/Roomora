@@ -113,11 +113,22 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
     }
   };
 
+  const OPENING_MOVES = [
+    "☕ Chai or Coffee to start the day?",
+    "🧼 Who's on dish duty during exam week / sprints?",
+    "❄️ AC temperature: freezing 18°C or breezy 24°C?",
+    "🎧 Noise-cancelling focus or living room playlists?",
+    "🍕 Cook together or strictly separate fridge shelves?"
+  ];
+  const [selectedMove, setSelectedMove] = useState<string>(OPENING_MOVES[0]);
+  const [customNote, setCustomNote] = useState<string>('');
+  const [isCustom, setIsCustom] = useState<boolean>(false);
+
   const renderContent = () => {
     switch (step) {
       case 'confirm':
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Profile Preview */}
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800">
               <img
@@ -139,21 +150,60 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
               </div>
             </div>
 
+            {/* Bumble-style Opening Move Icebreakers */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-teal-500/5 to-indigo-500/10 border border-amber-500/20 dark:border-amber-400/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                  <span>⚡ Opening Move</span>
+                  <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400 normal-case">(Skip the awkward &ldquo;Hey&rdquo;)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsCustom(!isCustom)}
+                  className="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:underline"
+                >
+                  {isCustom ? 'Choose prompt' : 'Write custom'}
+                </button>
+              </div>
+
+              {!isCustom ? (
+                <div className="space-y-1.5">
+                  {OPENING_MOVES.map((move, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setSelectedMove(move)}
+                      className={`w-full text-left text-xs px-3 py-2 rounded-xl transition-all border ${
+                        selectedMove === move
+                          ? 'bg-amber-500/15 border-amber-500/50 text-slate-900 dark:text-white font-bold shadow-sm'
+                          : 'bg-white/60 dark:bg-slate-900/60 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-400/40'
+                      }`}
+                    >
+                      {move}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="e.g. Hey! Loved your flat pictures, when are you free for a quick chat?"
+                  value={customNote}
+                  onChange={(e) => setCustomNote(e.target.value)}
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              )}
+            </div>
+
             {/* Token cost explanation */}
-            <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/40">
-              <div className="flex items-start gap-3">
-                <Coins className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-teal-800 dark:text-teal-200">
+            <div className="p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/40">
+              <div className="flex items-start gap-2.5">
+                <Coins className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                <div className="text-[11px] text-teal-800 dark:text-teal-200">
                   {user ? (
                     <>
-                      <strong className="block font-bold mb-1">
-                        Uses 1 connection token
-                      </strong>
+                      <strong className="font-bold">Uses 1 connection token. </strong>
                       {tokenBalance ? (
-                        <span>
-                          You have <strong>{tokenBalance.balance}</strong> of {tokenBalance.lifetime_granted} free connections remaining.
-                          Once connected, messaging is free — no additional tokens required.
-                        </span>
+                        <span>{tokenBalance.balance} of {tokenBalance.lifetime_granted} remaining. All messages within connections are free.</span>
                       ) : (
                         <span>Connecting uses 1 token from your free allowance.</span>
                       )}
@@ -184,11 +234,11 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
               </button>
               <button
                 onClick={handleConnect}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all shadow-md active:scale-95"
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 font-bold text-sm transition-all shadow-md active:scale-95"
                 id="confirm-connect-btn"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>Connect</span>
+                <span>Send Opening Move</span>
               </button>
             </div>
           </div>
@@ -212,13 +262,16 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
             </div>
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">
-                Invitation Sent! 📨
+                Opening Move Sent! ⚡
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                We've sent your request and notified <strong className="text-slate-900 dark:text-white">{roommate.name}</strong> by email.
+                We've sent your icebreaker to <strong className="text-slate-900 dark:text-white">{roommate.name}</strong>.
               </p>
+              <div className="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 italic font-medium">
+                &ldquo;{isCustom && customNote.trim() ? customNote : selectedMove}&rdquo;
+              </div>
               <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400">
-                🔒 For privacy, chatting will unlock as soon as {roommate.name} accepts your connection invitation.
+                🔒 Chat will unlock as soon as {roommate.name} accepts your opening move invitation.
               </div>
               {tokenBalance && (
                 <p className="text-xs text-teal-600 dark:text-teal-400 mt-2 font-semibold">

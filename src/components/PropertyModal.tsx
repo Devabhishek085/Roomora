@@ -130,6 +130,7 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
               <img
                 src={property.images[activeImageIdx]}
                 alt={property.title}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover transition-all duration-300"
               />
 
@@ -179,7 +180,7 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
                       : 'border-transparent opacity-60 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt="thumb" className="w-full h-full object-cover" />
+                  <img src={img} alt="thumb" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

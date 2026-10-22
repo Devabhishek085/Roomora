@@ -10,7 +10,9 @@ import {
   ChevronRight,
   Coins,
   Clock,
-  BadgeCheck
+  BadgeCheck,
+  Compass,
+  Moon
 } from 'lucide-react';
 import { HeroScene } from '../components/3d/HeroScene';
 import { useAppStore } from '../store/useAppStore';
@@ -346,120 +348,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════
-          SECTION 3: HINGE-INSPIRED PROMPTS & VIBES
-          ═══════════════════════════════════════════════════ */}
-      <section className="py-20 bg-stone-100/60 dark:bg-slate-900/40 border-y border-stone-200/70 dark:border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-              Personality-First Living
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-5xl font-normal text-slate-900 dark:text-white mt-3">
-              Roommate Prompts that reveal the vibe.
-            </h2>
-            <p className="text-base text-slate-600 dark:text-slate-400 mt-3 font-normal">
-              Just like Hinge replaced the boring bio with thoughtful prompts, Roomora profiles let you see how someone genuinely lives.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Prompt Card 1 */}
-            <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2.5 py-1 rounded-full">
-                    Green Flag Prompt
-                  </span>
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">95% Match</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  The roommate green flag that won me over
-                </h4>
-                <p className="font-editorial text-xl text-slate-900 dark:text-white italic leading-snug">
-                  &ldquo;Replaces the 20L water can without anyone asking, and always puts out a fresh pot of chai on rainy mornings.&rdquo;
-                </p>
-              </div>
-
-              <div className="pt-6 border-t border-stone-100 dark:border-slate-800 flex items-center gap-3 mt-6">
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-                  alt="Sneha K."
-                  className="w-11 h-11 rounded-full object-cover border-2 border-teal-500/30"
-                />
-                <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">Sneha K., 23</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">UI Designer • Bengaluru</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Prompt Card 2 */}
-            <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-full">
-                    House Boundary
-                  </span>
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">92% Match</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  The boundary our flat won&apos;t compromise on
-                </h4>
-                <p className="font-editorial text-xl text-slate-900 dark:text-white italic leading-snug">
-                  &ldquo;Bedrooms are strictly silent zones after 11 PM for deep sleep and focus. The balcony is our open social lounge.&rdquo;
-                </p>
-              </div>
-
-              <div className="pt-6 border-t border-stone-100 dark:border-slate-800 flex items-center gap-3 mt-6">
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-                  alt="Aditya R."
-                  className="w-11 h-11 rounded-full object-cover border-2 border-amber-500/30"
-                />
-                <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">Aditya R., 24</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Software Eng • Gurugram</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Prompt Card 3 */}
-            <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-full">
-                    Sunday Routine
-                  </span>
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">96% Match</span>
-                </div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  On Sunday morning you will find me
-                </h4>
-                <p className="font-editorial text-xl text-slate-900 dark:text-white italic leading-snug">
-                  &ldquo;At the farmers market picking up veggies, followed by batch cooking and testing pasta sauces for the week.&rdquo;
-                </p>
-              </div>
-
-              <div className="pt-6 border-t border-stone-100 dark:border-slate-800 flex items-center gap-3 mt-6">
-                <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
-                  alt="Tanya S."
-                  className="w-11 h-11 rounded-full object-cover border-2 border-indigo-500/30"
-                />
-                <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">Tanya S., 22</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">DU Postgrad • Delhi</p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
 
       {/* ═══════════════════════════════════════════════════
           SECTION 4: HOW ROOMORA WORKS (3 SIMPLE STEPS)
@@ -688,6 +577,7 @@ export const LandingPage: React.FC = () => {
                     <img
                       src={prop.images[0]}
                       alt={prop.title}
+                      referrerPolicy="no-referrer"
                       className="w-14 h-14 rounded-xl object-cover shrink-0"
                     />
                     <div>
@@ -711,60 +601,94 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ═══════════════════════════════════════════════════
-          SECTION 7: REAL SUCCESS STORIES (HINGE EDITORIAL STYLE)
+          SECTION 7: LIVING SCENARIOS WE SOLVE (HONEST BETA FRAMING)
           ═══════════════════════════════════════════════════ */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-14">
           <span className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest">
-            Verified Stories
+            Real-Life Living Scenarios
           </span>
           <h2 className="font-editorial text-3xl sm:text-5xl font-normal text-slate-900 dark:text-white mt-3">
-            Matched on Roomora. Living drama-free.
+            Built for how young India moves and lives.
           </h2>
           <p className="text-base text-slate-600 dark:text-slate-400 mt-3 font-normal">
-            Real stories from young professionals who deleted Roomora after finding their people.
+            Roomora is engineered to solve the exact roommate frictions college students and young professionals encounter every day.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
-              quote: 'Moved from Mumbai to Gurugram knowing zero people. Found Ananya within 3 days — our sleep schedules and cleanliness matched at 94%. We just renewed our lease for year two!',
-              author: 'Radhika & Ananya',
-              role: 'Flatmates @ DLF Phase 5, Gurugram',
-              badge: '18 Months Co-Living'
+              icon: <Compass className="w-5 h-5 text-teal-600 dark:text-teal-400" />,
+              scenario: 'Moving to a New City',
+              tag: 'Out-of-State Relocation',
+              title: 'Knowing zero people in a new metro',
+              pain: 'Relocating to Gurugram, Bengaluru, or Delhi without a network forces you into blind flatmate pairings and paying 1-month broker fees.',
+              solution: 'Connect with verified college peers or young professionals 2–4 weeks before moving. Tour flats together and split the deposit directly with zero brokerage.',
+              badge: 'Pre-Move Matching'
             },
             {
-              quote: 'The compatibility engine caught that we both like Sunday cooking and coding with headphones until 2 AM. Zero flatmate tension in 14 months. Best app decision I made.',
-              author: 'Dev & Siddharth',
-              role: 'Flatmates @ Indiranagar, Bengaluru',
-              badge: '92% Compatibility Score'
+              icon: <Moon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+              scenario: 'Circadian Clash',
+              tag: 'Night Owl vs Early Bird',
+              title: 'Midnight coder vs 6 AM morning alarms',
+              pain: 'Getting paired with someone whose blender wakes you up at 6:30 AM while you only went to bed at 3:00 AM after debugging code.',
+              solution: 'Our matching algorithm aligns sleep and wake windows. Night owls room with night owls, and early risers room with early risers. Quiet hours respected from day one.',
+              badge: 'Sleep Window Harmony'
             },
             {
-              quote: 'Saved ₹48,000 in broker commission fees and didn\'t have to deal with creepy landlords alone. Finding a female flatmate with verified Aadhaar gave my family total peace of mind.',
-              author: 'Zoya & Tanya',
-              role: 'DU Graduates @ Hauz Khas, Delhi',
-              badge: 'Aadhaar Verified'
+              icon: <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
+              scenario: 'Safety & Trust',
+              tag: 'Zero Anonymous Bots',
+              title: 'No creepy DMs or deposit scammers',
+              pain: 'Browsing random Facebook groups where users hide behind fake avatars, ask for advance token transfers, or spam your personal phone number.',
+              solution: '100% Aadhaar-verified profiles with institution checks. Use free in-app connection tokens to chat securely before ever sharing personal contact info.',
+              badge: 'Aadhaar & In-App Chat'
             },
-          ].map(({ quote, author, role, badge }) => (
+          ].map(({ icon, scenario, tag, title, pain, solution, badge }) => (
             <div
-              key={author}
-              className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between"
+              key={title}
+              className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
             >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex text-amber-400">{'★'.repeat(5)}</div>
-                  <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50 dark:border-teal-800/40">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-slate-800 flex items-center justify-center">
+                      {icon}
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      {scenario}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-full border border-teal-200/50 dark:border-teal-800/40">
                     {badge}
                   </span>
                 </div>
-                <p className="font-editorial text-base text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                  &ldquo;{quote}&rdquo;
-                </p>
+
+                <h3 className="font-editorial text-xl font-normal text-slate-900 dark:text-white leading-snug">
+                  {title}
+                </h3>
+
+                <div className="p-3.5 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 text-xs text-rose-900 dark:text-rose-300 leading-relaxed">
+                  <strong className="font-semibold block mb-1">The Friction:</strong>
+                  {pain}
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/30 text-xs text-teal-900 dark:text-teal-300 leading-relaxed">
+                  <strong className="font-semibold block mb-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    How Roomora Solves It:
+                  </strong>
+                  {solution}
+                </div>
               </div>
-              <div className="pt-6 border-t border-stone-100 dark:border-slate-800 mt-6">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">{author}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">{role}</div>
+
+              <div className="pt-5 border-t border-stone-100 dark:border-slate-800 mt-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>Core Pillar: {tag}</span>
+                <Link to="/matches" className="text-teal-600 dark:text-teal-400 font-bold hover:underline flex items-center gap-1">
+                  <span>Match Now</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
           ))}

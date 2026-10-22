@@ -355,17 +355,68 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
                   )}
                 </div>
 
-                {/* ── SECTION 2: BIO / ABOUT ── */}
-                {roommate.bio && (
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      About {roommate.name.split(' ')[0]}
+                {/* ── SECTION 2: HINGE-STYLE PROFILE PROMPTS & BUMBLE VIBES ── */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Roomie Prompts &amp; Vibe Check</span>
                     </h4>
-                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                      &ldquo;{roommate.bio}&rdquo;
+                    <span className="text-[10px] text-slate-400 font-medium">Hinge &amp; Bumble Style</span>
+                  </div>
+
+                  {/* Bumble Vibe Pills */}
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/10 to-indigo-500/20 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5">
+                      {roommate.sleepSchedule === 'Night Owl' ? '🌙 Night Owl Coder' : '☀️ Early Riser'}
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-teal-500/10 to-teal-500/20 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-bold flex items-center gap-1.5">
+                      {roommate.cleanliness >= 4 ? '🧼 Clean Sink Policy' : '✨ Tidy & Easygoing'}
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/10 to-amber-500/20 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-1.5">
+                      {roommate.foodPreference === 'Vegetarian' ? '🥗 Veg Kitchen Friendly' : '🍳 Non-Veg Friendly'}
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-gradient-to-r from-rose-500/10 to-rose-500/20 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1.5">
+                      🎧 Noise-Cancelling On
+                    </span>
+                  </div>
+
+                  {/* Hinge Prompt Card 1 */}
+                  <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      The roommate green flag that matters most
+                    </span>
+                    <p className="font-editorial text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-relaxed italic">
+                      {roommate.cleanliness >= 4
+                        ? '“Replaces the water jar without being asked, and leaves the kitchen sparkling after late-night cooking.”'
+                        : '“Respects quiet hours during work calls and communicates openly about guests ahead of time.”'}
                     </p>
                   </div>
-                )}
+
+                  {/* Hinge Prompt Card 2 */}
+                  <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/20 border border-teal-200/70 dark:border-teal-800/40 space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                      Typical Sunday morning in our flat
+                    </span>
+                    <p className="font-editorial text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-relaxed italic">
+                      {roommate.sleepSchedule === 'Night Owl'
+                        ? '“Sleeping in until 11 AM, iced cold brew, and peaceful chill music. Zero loud vacuuming before noon.”'
+                        : '“Up early for a workout, brewing fresh filter coffee, and opening the balcony for morning sunlight.”'}
+                    </p>
+                  </div>
+
+                  {/* About statement */}
+                  {roommate.bio && (
+                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                        In their own words
+                      </span>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 italic">
+                        &ldquo;{roommate.bio}&rdquo;
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {/* ── SECTION 3: KEY DETAILS GRID ── */}
                 <div className="space-y-3">

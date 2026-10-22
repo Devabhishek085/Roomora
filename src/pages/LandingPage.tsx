@@ -72,7 +72,7 @@ export const LandingPage: React.FC = () => {
       {/* Editorial Announcement Bar */}
       <div className="bg-slate-900 dark:bg-black text-slate-200 text-xs font-medium py-2.5 px-4 text-center border-b border-slate-800 flex items-center justify-center gap-2">
         <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>Designed to be deleted: Find your compatible flatmate, sign your lease, and move on with life.</span>
+        <span>Find your compatible flatmate, sign your lease and move on with life.</span>
       </div>
 
       {/* ═══════════════════════════════════════════════════
@@ -139,8 +139,7 @@ export const LandingPage: React.FC = () => {
                   <span>10 Free Connection Tokens</span>
                 </div>
                 <div className="flex items-center gap-2 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>Zero Brokerage Forever</span>
+                  
                 </div>
               </div>
             </div>
@@ -155,16 +154,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Floating Hinge-style Compatibility Prompt Badge */}
-                <div className="absolute -bottom-6 -left-6 max-w-xs p-4 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xl hidden sm:block">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full">
-                      94% Compatibility Match
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-800 dark:text-slate-200 font-editorial italic leading-snug">
-                    &ldquo;Both wake up around 8 AM, keep the kitchen spotless, and share weekend chai.&rdquo;
-                  </p>
-                </div>
+                
               </div>
             </div>
 
@@ -237,7 +227,7 @@ export const LandingPage: React.FC = () => {
                   The Roomora Way
                 </span>
                 <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-6">
-                  Compatibility-first, verified, and zero brokerage
+                  Compatibility-first, verified and zero brokerage
                 </h3>
                 
                 <ul className="space-y-4 text-sm text-slate-700 dark:text-slate-300">

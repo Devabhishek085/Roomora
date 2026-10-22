@@ -36,6 +36,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           src={property.images[0]}
           alt={property.title}
           loading="lazy"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 

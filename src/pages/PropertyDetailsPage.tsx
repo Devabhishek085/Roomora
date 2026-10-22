@@ -84,6 +84,7 @@ export const PropertyDetailsPage: React.FC = () => {
             <img
               src={property.images[activeImageIdx]}
               alt={property.title}
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
             />
             <div className="absolute top-4 left-4 flex gap-2">
@@ -111,7 +112,7 @@ export const PropertyDetailsPage: React.FC = () => {
                   idx === activeImageIdx ? 'border-teal-500' : 'border-transparent opacity-60'
                 }`}
               >
-                <img src={img} alt="thumb" className="w-full h-full object-cover" />
+                <img src={img} alt="thumb" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

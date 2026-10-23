@@ -247,7 +247,7 @@ export const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                    <span><strong>Designed to be deleted:</strong> Once you connect, tour, and sign your flat lease together, our job is done.</span>
+                    <span><strong>Find your fit. Feel at home:</strong> Connect with compatible roommates and build a more peaceful living experience.</span>
                   </li>
                 </ul>
               </div>
@@ -414,7 +414,7 @@ export const LandingPage: React.FC = () => {
                 Connect & Move In Together
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Use your 10 free connection tokens to message verified roommates. Schedule physical or virtual tours, sign your lease, and delete Roomora!
+                Use your 10 free connection tokens to message verified roommates. Schedule physical or virtual tours, sign your lease !
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-stone-100 dark:border-slate-800 text-xs font-medium text-slate-500">
@@ -707,7 +707,7 @@ export const LandingPage: React.FC = () => {
 
           <h2 className="font-editorial text-4xl sm:text-6xl font-normal text-slate-900 dark:text-white leading-tight">
             Find your match today.<br />
-            Delete Roomora tomorrow.
+            Shift tomorrow.
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto font-normal">

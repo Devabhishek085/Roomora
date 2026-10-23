@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { UserAvatar } from './UserAvatar';
 import {
   X,
   MapPin,
@@ -124,10 +125,13 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <img
+                  <UserAvatar
                     src={roommate.avatarUrl}
-                    alt={roommate.name}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-teal-500/80 shadow-md ring-4 ring-teal-500/10"
+                    name={roommate.name}
+                    seed={roommate.id}
+                    size="full"
+                    shape="rounded"
+                    className="w-16 h-16 sm:w-20 sm:h-20 border-2 border-teal-500/80 shadow-md ring-4 ring-teal-500/10"
                   />
                   {roommate.isAadhaarVerified && (
                     <div
@@ -360,9 +364,9 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Roomie Prompts &amp; Vibe Check</span>
+                      <span> Vibe Check</span>
                     </h4>
-                    <span className="text-[10px] text-slate-400 font-medium">Hinge &amp; Bumble Style</span>
+                    <span className="text-[10px] text-slate-400 font-medium"></span>
                   </div>
 
                   {/* Bumble Vibe Pills */}
@@ -384,7 +388,7 @@ export const RoommateProfileModal: React.FC<RoommateProfileModalProps> = ({
                   {/* Hinge Prompt Card 1 */}
                   <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 space-y-1.5">
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                      The roommate green flag that matters most
+                      The green flag
                     </span>
                     <p className="font-editorial text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-relaxed italic">
                       {roommate.cleanliness >= 4

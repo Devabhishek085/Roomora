@@ -11,7 +11,7 @@ export function dbProfileToRoommateProfile(profile: DbProfile): RoommateProfile 
     name: profile.display_name || 'Anonymous',
     age: profile.age ?? 0,
     gender: (profile.gender as RoommateProfile['gender']) || 'Non-binary',
-    avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`,
+    avatarUrl: profile.avatar_url || null,  // null → UserAvatar renders modern gradient initials
     occupation: profile.occupation || 'Student',
     institution: profile.institution || '',
     city: profile.city || '',

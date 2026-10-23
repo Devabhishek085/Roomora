@@ -28,6 +28,7 @@ import { calculateCompatibility } from '../services/compatibility';
 import { AadhaarVerificationCard } from '../components/AadhaarVerificationCard';
 import { RoommateProfileModal } from '../components/RoommateProfileModal';
 import { ConnectModal } from '../components/ConnectModal';
+import { UserAvatar } from '../components/UserAvatar';
 import type { RoommateProfile } from '../types';
 
 export const DashboardPage: React.FC = () => {
@@ -631,10 +632,13 @@ export const DashboardPage: React.FC = () => {
                       title="Click to view roommate profile and room photos"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <img
+                        <UserAvatar
                           src={r.avatarUrl}
-                          alt={r.name}
-                          className="w-12 h-12 rounded-xl object-cover shrink-0"
+                          name={r.name}
+                          seed={r.id}
+                          size="md"
+                          shape="rounded"
+                          className="w-12 h-12 rounded-xl shrink-0"
                         />
                         <div className="min-w-0">
                           <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors flex items-center gap-1.5">

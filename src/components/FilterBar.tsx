@@ -144,7 +144,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           Accommodation Type
         </label>
         <div className="flex flex-wrap gap-1.5">
-          {['All', 'PG', 'Flat', 'Studio', 'Private Room', 'Shared Room'].map((t) => (
+          {['All', 'PG', 'Flat'].map((t) => (
             <button
               key={t}
               type="button"
@@ -167,7 +167,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           Gender Policy
         </label>
         <div className="flex flex-wrap gap-1.5">
-          {['All', 'Boys Only', 'Girls Only', 'Co-Living / Unisex'].map((g) => (
+          {['All', 'Boys Only', 'Girls Only', 'Co-Living'].map((g) => (
             <button
               key={g}
               type="button"

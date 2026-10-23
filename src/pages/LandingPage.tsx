@@ -22,6 +22,7 @@ import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
 import { RoommateProfileModal } from '../components/RoommateProfileModal';
 import { ConnectModal } from '../components/ConnectModal';
+import { UserAvatar } from '../components/UserAvatar';
 import type { RoommateProfile } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -247,7 +248,7 @@ export const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                    <span><strong>Designed to be deleted:</strong> Once you connect, tour, and sign your flat lease together, our job is done.</span>
+                    <span><strong>Find your fit. Feel at home:</strong> Connect with compatible roommates and build a more peaceful living experience.</span>
                   </li>
                 </ul>
               </div>
@@ -414,7 +415,7 @@ export const LandingPage: React.FC = () => {
                 Connect & Move In Together
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Use your 10 free connection tokens to message verified roommates. Schedule physical or virtual tours, sign your lease, and delete Roomora!
+                Use your 10 free connection tokens to message verified roommates. Schedule physical or virtual tours, sign your lease !
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-stone-100 dark:border-slate-800 text-xs font-medium text-slate-500">
@@ -468,10 +469,13 @@ export const LandingPage: React.FC = () => {
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <img
+                    <UserAvatar
                       src={roommate.avatarUrl}
-                      alt={roommate.name}
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-stone-100 dark:border-slate-800 group-hover:scale-105 transition-transform"
+                      name={roommate.name}
+                      seed={roommate.id}
+                      size="xl"
+                      shape="rounded"
+                      className="w-16 h-16 rounded-2xl border-2 border-stone-100 dark:border-slate-800 group-hover:scale-105 transition-transform"
                     />
                     <div className="text-right">
                       <div className="text-2xl font-bold font-editorial text-teal-600 dark:text-teal-400">
@@ -707,7 +711,7 @@ export const LandingPage: React.FC = () => {
 
           <h2 className="font-editorial text-4xl sm:text-6xl font-normal text-slate-900 dark:text-white leading-tight">
             Find your match today.<br />
-            Delete Roomora tomorrow.
+            Shift tomorrow.
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto font-normal">

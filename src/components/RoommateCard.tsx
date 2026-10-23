@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Heart, Sparkles, MapPin, CheckCircle2, UserCheck, MessageSquare, Info, Bot, ShieldCheck, Home, Zap } from 'lucide-react';
 import type { RoommateProfile, CompatibilityReport } from '../types';
 import { useAppStore } from '../store/useAppStore';
+import { UserAvatar } from './UserAvatar';
 
 interface RoommateCardProps {
   roommate: RoommateProfile;
@@ -100,9 +101,12 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
         {/* Top Card Image & Compatibility Pill */}
         <div className="p-5 pb-0">
           <div className="relative h-48 w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800">
-            <img
+            <UserAvatar
               src={roommate.avatarUrl}
-              alt={roommate.name}
+              name={roommate.name}
+              seed={roommate.id}
+              size="full"
+              shape="square"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
 
@@ -189,24 +193,7 @@ export const RoommateCard: React.FC<RoommateCardProps> = ({
             )}
 
             {/* Hinge-style Profile Prompt Card */}
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-teal-500/5 to-indigo-500/10 border border-amber-500/25 dark:border-amber-400/20 text-slate-800 dark:text-slate-200 space-y-1 mt-2.5">
-              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>Roomie Prompt</span>
-                </span>
-                <span className="text-[9px] text-slate-400 font-bold lowercase">hinge-style</span>
-              </div>
-              <p className="font-editorial text-xs italic text-slate-800 dark:text-slate-200 leading-snug">
-                {roommate.cleanliness >= 4
-                  ? "“The green flag in our flat: Sinks are always clean before anyone heads to sleep ✨”"
-                  : roommate.sleepSchedule === 'Night Owl'
-                  ? "“Unwritten house rule: Headphones always in after 1 AM, zero loud noise 🎧”"
-                  : roommate.foodPreference === 'Vegetarian'
-                  ? "“Sunday morning ritual: Fresh masala chai, sourdough, and relaxing playlists ☕”"
-                  : `“${roommate.bio || 'Respectful, chill, and focused on drama-free co-living.'}”`}
-              </p>
-            </div>
+            
 
             {/* Bumble-style Vibrant Vibe Badges */}
             <div className="flex flex-wrap gap-1.5 mt-2.5">

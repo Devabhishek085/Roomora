@@ -151,7 +151,7 @@ export interface RoommateProfile {
   name: string;
   age: number;
   gender: 'Male' | 'Female' | 'Non-binary';
-  avatarUrl: string;
+  avatarUrl: string | null;
   flatImages?: string[];
   occupation: string;
   institution: string;

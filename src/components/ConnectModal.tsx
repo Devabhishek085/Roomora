@@ -7,6 +7,7 @@ import { useAppStore } from '../store/useAppStore';
 import { initiateConnection, checkExistingConnection, getConversationByConnection } from '../services/connections';
 import { sendConnectionInvitationEmail } from '../services/notifications';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { UserAvatar } from './UserAvatar';
 
 interface ConnectModalProps {
   roommate: RoommateProfile | null;
@@ -131,10 +132,13 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ roommate, onClose })
           <div className="space-y-4">
             {/* Profile Preview */}
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800">
-              <img
+              <UserAvatar
                 src={roommate.avatarUrl}
-                alt={roommate.name}
-                className="w-14 h-14 rounded-xl object-cover border-2 border-teal-400/30"
+                name={roommate.name}
+                seed={roommate.id}
+                size="lg"
+                shape="rounded"
+                className="w-14 h-14 rounded-xl border-2 border-teal-400/30"
               />
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white">{roommate.name}</h3>

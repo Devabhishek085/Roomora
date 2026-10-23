@@ -29,11 +29,11 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <AnimatedRoomoraLogo size="sm" showHalo={false} />
               <span className="font-heading font-extrabold text-xl text-slate-900 dark:text-white">
-                Roommate<span className="text-teal-600 dark:text-teal-400">.com</span>
+                Roomora<span className="text-teal-600 dark:text-teal-400"></span>
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Find Your Place. Find Your People. Built by two former students who were tired of shady brokers and awkward roommate surprises.
+              Find Your Place. Find Your People. Built by two students who were tired of shady brokers and awkward roommate surprises.
             </p>
             <div className="flex items-center gap-2 text-xs text-teal-600 dark:text-teal-400">
               <MapPin className="w-3.5 h-3.5" />

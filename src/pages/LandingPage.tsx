@@ -22,6 +22,7 @@ import { calculateCompatibility } from '../services/compatibility';
 import { fetchRoommateProfiles } from '../services/profiles';
 import { RoommateProfileModal } from '../components/RoommateProfileModal';
 import { ConnectModal } from '../components/ConnectModal';
+import { UserAvatar } from '../components/UserAvatar';
 import type { RoommateProfile } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -468,10 +469,13 @@ export const LandingPage: React.FC = () => {
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <img
+                    <UserAvatar
                       src={roommate.avatarUrl}
-                      alt={roommate.name}
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-stone-100 dark:border-slate-800 group-hover:scale-105 transition-transform"
+                      name={roommate.name}
+                      seed={roommate.id}
+                      size="xl"
+                      shape="rounded"
+                      className="w-16 h-16 rounded-2xl border-2 border-stone-100 dark:border-slate-800 group-hover:scale-105 transition-transform"
                     />
                     <div className="text-right">
                       <div className="text-2xl font-bold font-editorial text-teal-600 dark:text-teal-400">
